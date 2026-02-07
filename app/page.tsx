@@ -1015,18 +1015,22 @@ export default function DashboardPage() {
 
   // Sync newUser state when editingUser changes
   useEffect(() => {
-    if (editingUser) {
+    if (editingUser && showUserForm) {
       // Explicitly copy all fields from editingUser to newUser
-      setNewUser({
+      // Don't include password field for editing - it's optional
+      const syncedUser = {
         id: editingUser.id,
-        nombre: editingUser.nombre,
-        correo: editingUser.correo || editingUser.email,
-        email: editingUser.email,
+        nombre: editingUser.nombre || "",
+        correo: editingUser.correo || editingUser.email || "",
+        email: editingUser.email || editingUser.correo || "",
         rol: editingUser.rol,
-        especialidad: editingUser.especialidad,
+        especialidad: editingUser.especialidad || "",
         estado: editingUser.estado || (editingUser.activo ? "Activo" : "Inactivo"),
-        activo: editingUser.activo,
-      })
+        activo: editingUser.activo !== undefined ? editingUser.activo : true,
+        // Don't set contrasena for editing users - password field is hidden
+      }
+      
+      setNewUser(syncedUser)
       // Clear any previous errors
       setUserFormErrors({})
     }
@@ -3488,7 +3492,7 @@ export default function DashboardPage() {
     onClick={() => {
       // Clean everything when opening for a new user
       setEditingUser(null)
-      setNewUser({ estado: "Activo" })
+      setNewUser({ estado: "Activo", contrasena: "" })
       setUserFormErrors({})
       setShowUserForm(true)
     }} 
@@ -3651,16 +3655,8 @@ export default function DashboardPage() {
                                   variant="outline"
                                   size="sm"
               onClick={() => {
-                // Map API fields to form fields when editing
+                // Set editing user - useEffect will handle syncing to newUser
                 setEditingUser(user)
-                setNewUser({
-                  id: user.id,
-                  nombre: user.nombre,
-                  correo: user.correo || user.email,
-                  rol: user.rol,
-                  especialidad: user.especialidad,
-                  estado: user.estado || (user.activo ? "Activo" : "Inactivo"),
-                })
                 setShowUserForm(true)
               }}
                                   className="text-green-600 hover:text-green-700"
@@ -3801,7 +3797,13 @@ export default function DashboardPage() {
             setShowUserForm(open)
             if (!open) {
               // Clean up state when dialog closes
-              setEditingUser(null)
+              setTimeout(() => {
+                setEditingUser(null)
+                setNewUser({ estado: "Activo" })
+                setUserFormErrors({})
+              }, 0)
+            } else if (open && !editingUser) {
+              // When opening for a new user, clear any previous state
               setNewUser({ estado: "Activo" })
               setUserFormErrors({})
             }
@@ -3932,25 +3934,38 @@ export default function DashboardPage() {
               </Button>
               <Button
                 onClick={async () => {
+                  // Validate required fields
                   if (!newUser.nombre || !newUser.correo || !newUser.rol) {
                     setUserFormErrors({ ...userFormErrors, general: "Por favor complete los campos requeridos." })
                     return
                   }
 
-                  if (!editingUser && !newUser.contrasena) {
-                    setUserFormErrors({
-                      ...userFormErrors,
-                      contrasena: "La contraseña es obligatoria para nuevos usuarios",
-                    })
-                    return
-                  }
+                  // For new users, password is required
+                  if (!editingUser) {
+                    if (!newUser.contrasena || newUser.contrasena.trim() === "") {
+                      setUserFormErrors({
+                        ...userFormErrors,
+                        contrasena: "La contraseña es obligatoria para nuevos usuarios",
+                      })
+                      return
+                    }
 
-                  if (!editingUser && newUser.contrasena && newUser.contrasena.length < 6) {
-                    setUserFormErrors({
-                      ...userFormErrors,
-                      contrasena: "La contraseña debe tener al menos 6 caracteres",
-                    })
-                    return
+                    if (newUser.contrasena.length < 6) {
+                      setUserFormErrors({
+                        ...userFormErrors,
+                        contrasena: "La contraseña debe tener al menos 6 caracteres",
+                      })
+                      return
+                    }
+                  } else {
+                    // For editing users, password is optional but if provided, must be at least 6 chars
+                    if (newUser.contrasena && newUser.contrasena.length > 0 && newUser.contrasena.length < 6) {
+                      setUserFormErrors({
+                        ...userFormErrors,
+                        contrasena: "La contraseña debe tener al menos 6 caracteres",
+                      })
+                      return
+                    }
                   }
 
                   setUsersLoading(true)

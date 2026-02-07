@@ -7,8 +7,10 @@ export type Usuario = {
   id?: number
   nombre: string
   email: string
+  correo?: string
   rol: string
   activo: boolean
+  especialidad?: string
   permissions?: any
   estado?: string
   created_at?: string | Date
@@ -70,8 +72,10 @@ export async function fetchUsuarios(params: FetchUsuariosParams = {}): Promise<U
           id: true,
           nombre: true,
           email: true,
+          correo: true,
           rol: true,
           activo: true,
+          especialidad: true,
           created_at: true,
           updated_at: true,
         },
@@ -84,7 +88,9 @@ export async function fetchUsuarios(params: FetchUsuariosParams = {}): Promise<U
 
     return { 
       data: data.map(u => ({ 
-        ...u, 
+        ...u,
+        correo: u.correo || u.email,
+        especialidad: u.especialidad || "",
         estado: u.activo ? 'activo' : 'inactivo',
         created_at: u.created_at ? u.created_at.toISOString() : undefined,
         updated_at: u.updated_at ? u.updated_at.toISOString() : undefined,
@@ -107,8 +113,10 @@ export async function fetchUsuarioDetails(id: number): Promise<Usuario | null> {
         id: true,
         nombre: true,
         email: true,
+        correo: true,
         rol: true,
         activo: true,
+        especialidad: true,
         created_at: true,
         updated_at: true,
       }
@@ -120,8 +128,10 @@ export async function fetchUsuarioDetails(id: number): Promise<Usuario | null> {
       id: usuario.id,
       nombre: usuario.nombre,
       email: usuario.email,
+      correo: usuario.correo,
       rol: usuario.rol,
       activo: usuario.activo,
+      especialidad: usuario.especialidad,
       estado: usuario.activo ? 'activo' : 'inactivo',
       created_at: usuario.created_at ? usuario.created_at.toISOString() : undefined,
       updated_at: usuario.updated_at ? usuario.updated_at.toISOString() : undefined,
@@ -140,12 +150,16 @@ export async function saveUsuario(usuario: UsuarioWithPassword): Promise<{
   try {
     // Map frontend fields to API fields
     const email = usuario.email || usuario.correo || usuario.email
+    const correo = usuario.correo || usuario.email
+    const especialidad = usuario.especialidad || ""
     const activo = usuario.activo !== undefined ? usuario.activo : (usuario.estado?.toLowerCase() === 'activo' ? true : false)
     
     console.log("[v0] saveUsuario called with:", { 
       id: usuario.id, 
       nombre: usuario.nombre, 
       email,
+      correo,
+      especialidad,
       rol: usuario.rol,
       activo,
       hasPassword: !!usuario.password
@@ -158,6 +172,8 @@ export async function saveUsuario(usuario: UsuarioWithPassword): Promise<{
       const updateData: any = {
         nombre: usuario.nombre,
         email: email,
+        correo: correo,
+        especialidad: especialidad,
         rol: usuario.rol,
         activo: activo,
         updated_at: new Date(),
@@ -176,6 +192,8 @@ export async function saveUsuario(usuario: UsuarioWithPassword): Promise<{
           id: true,
           nombre: true,
           email: true,
+          correo: true,
+          especialidad: true,
           rol: true,
           activo: true,
           created_at: true,
@@ -191,6 +209,8 @@ export async function saveUsuario(usuario: UsuarioWithPassword): Promise<{
       console.log("[v0] Creating new usuario with data:", { 
         nombre: usuario.nombre, 
         email,
+        correo,
+        especialidad,
         rol: usuario.rol,
         activo
       })
@@ -199,6 +219,8 @@ export async function saveUsuario(usuario: UsuarioWithPassword): Promise<{
         data: {
           nombre: usuario.nombre,
           email: email,
+          correo: correo,
+          especialidad: especialidad,
           password: await bcrypt.hash(usuario.password, 10),
           rol: usuario.rol,
           activo: activo ?? true,
@@ -209,6 +231,8 @@ export async function saveUsuario(usuario: UsuarioWithPassword): Promise<{
           id: true,
           nombre: true,
           email: true,
+          correo: true,
+          especialidad: true,
           rol: true,
           activo: true,
           created_at: true,
@@ -228,7 +252,6 @@ export async function saveUsuario(usuario: UsuarioWithPassword): Promise<{
       usuario: { 
         ...savedUsuario, 
         estado: savedUsuario.activo ? 'activo' : 'inactivo',
-        correo: savedUsuario.email
       },
     }
   } catch (error: any) {
