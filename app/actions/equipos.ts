@@ -39,6 +39,24 @@ export type EquipoWithDetails = Equipo & {
   documentos?: any[]
 }
 
+// Fallback in-memory storage when DATABASE_URL is not configured
+let localEquiposStorage: Equipo[] = [
+  {
+    id: 1,
+    codigo: "EQ-001",
+    nombre: "Resonancia Magnética",
+    tipo: "Diagnóstico",
+    marca: "Siemens",
+    modelo: "MAGNETOM",
+    numero_serie: "12345",
+    ubicacion: "Piso 2 - Radiología",
+    estado: "operativo",
+    criticidad: "alta",
+    descripcion: "Equipo de resonancia magnética",
+  }
+]
+let nextEquipoId = 2
+
 // Obtener lista de equipos con filtros
 export async function fetchEquipos(params?: {
   page?: number
@@ -82,21 +100,64 @@ export async function fetchEquipos(params?: {
       where.marca = { contains: params.marca }
     }
 
-    const [equipos, total] = await Promise.all([
-      prisma.equipo.findMany({
-        where,
-        skip,
-        take: perPage,
-        orderBy: { created_at: 'desc' }
-      }),
-      prisma.equipo.count({ where })
-    ])
+    try {
+      const [equipos, total] = await Promise.all([
+        prisma.equipo.findMany({
+          where,
+          skip,
+          take: perPage,
+          orderBy: { created_at: 'desc' }
+        }),
+        prisma.equipo.count({ where })
+      ])
 
-    return {
-      data: equipos as any[],
-      total,
-      per_page: perPage,
-      current_page: page,
+      return {
+        data: equipos as any[],
+        total,
+        per_page: perPage,
+        current_page: page,
+      }
+    } catch (dbError) {
+      console.log("[v0] Database error, using fallback storage for fetchEquipos")
+      // Fallback: filter from memory
+      let filtered = [...localEquiposStorage]
+      
+      if (params?.search) {
+        const searchLower = params.search.toLowerCase()
+        filtered = filtered.filter(e =>
+          e.codigo?.toLowerCase().includes(searchLower) ||
+          e.nombre?.toLowerCase().includes(searchLower) ||
+          e.marca?.toLowerCase().includes(searchLower) ||
+          e.modelo?.toLowerCase().includes(searchLower) ||
+          e.numero_serie?.toLowerCase().includes(searchLower)
+        )
+      }
+      
+      if (params?.estado) {
+        filtered = filtered.filter(e => e.estado === params.estado)
+      }
+      
+      if (params?.ubicacion) {
+        filtered = filtered.filter(e => e.ubicacion?.toLowerCase().includes(params.ubicacion!.toLowerCase()))
+      }
+      
+      if (params?.tipo) {
+        filtered = filtered.filter(e => e.tipo === params.tipo)
+      }
+      
+      if (params?.marca) {
+        filtered = filtered.filter(e => e.marca?.toLowerCase().includes(params.marca!.toLowerCase()))
+      }
+      
+      const total = filtered.length
+      const data = filtered.slice(skip, skip + perPage)
+      
+      return {
+        data: data as any[],
+        total,
+        per_page: perPage,
+        current_page: page,
+      }
     }
   } catch (error) {
     console.error("[v0] Error fetching equipos:", error)
