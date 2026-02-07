@@ -5966,9 +5966,14 @@ export default function DashboardPage() {
         const logoUrl = reader.result as string
         setHospitalLogo(logoUrl)
         
-        // Save logo to database instead of localStorage
+        // Save logo to database
         const result = await saveHospitalLogo(logoUrl)
         if (result.success) {
+          // Also save to localStorage for immediate access on login page
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('hospitalLogo', logoUrl)
+          }
+          
           toast({
             title: "Logo actualizado",
             description: "El logo del hospital se ha guardado correctamente.",

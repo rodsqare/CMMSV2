@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Mail, Lock } from 'lucide-react'
 import { validateLogin } from "@/app/actions/auth"
+import { getHospitalLogo } from "@/app/actions/configuracion"
 
 // Default demo credentials
 const DEMO_USERS = [
@@ -30,12 +31,32 @@ export default function LoginPage() {
   const router = useRouter()
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedLogo = localStorage.getItem("hospitalLogo")
-      if (savedLogo) {
-        setHospitalLogo(savedLogo)
+    const loadLogo = async () => {
+      // First try to get from localStorage
+      if (typeof window !== 'undefined') {
+        const savedLogo = localStorage.getItem("hospitalLogo")
+        if (savedLogo) {
+          setHospitalLogo(savedLogo)
+          return
+        }
+      }
+      
+      // If not in localStorage, fetch from database
+      try {
+        const dbLogo = await getHospitalLogo()
+        if (dbLogo) {
+          setHospitalLogo(dbLogo)
+          // Cache it in localStorage for future visits
+          if (typeof window !== 'undefined') {
+            localStorage.setItem("hospitalLogo", dbLogo)
+          }
+        }
+      } catch (error) {
+        console.error("[v0] Error loading hospital logo:", error)
       }
     }
+    
+    loadLogo()
   }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
