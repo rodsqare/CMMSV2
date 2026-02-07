@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   description: "Sistema de Gestión de Mantenimiento de Equipos Biomédicos",
   generator: "v0.app",
   icons: {
-    icon: "/icon.svg",
+    icon: "/logo.png",
   },
 }
 
