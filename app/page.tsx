@@ -1016,8 +1016,7 @@ export default function DashboardPage() {
       const syncedUser = {
         id: editingUser.id,
         nombre: editingUser.nombre || "",
-        correo: editingUser.correo || editingUser.email || "",
-        email: editingUser.email || editingUser.correo || "",
+        email: editingUser.email || "",
         rol: editingUser.rol,
         estado: editingUser.estado || (editingUser.activo ? "Activo" : "Inactivo"),
         activo: editingUser.activo !== undefined ? editingUser.activo : true,
@@ -3952,7 +3951,13 @@ export default function DashboardPage() {
                   }
 
                   setUsersLoading(true)
-                  const result = await saveUsuario(newUser)
+                  // Map contrasena to password for the API
+                  const usuarioData = {
+                    ...newUser,
+                    password: newUser.contrasena,
+                    contrasena: undefined, // Remove the frontend field
+                  }
+                  const result = await saveUsuario(usuarioData)
 
                   if (result.success) {
                     alert("Usuario guardado exitosamente")
@@ -3992,7 +3997,7 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-600">Correo</Label>
-                  <p className="text-sm">{selectedUser?.correo || "N/A"}</p>
+                  <p className="text-sm">{selectedUser?.email || "N/A"}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-600">Rol</Label>
