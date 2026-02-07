@@ -188,24 +188,6 @@ export default function LoginPage() {
                     />
                   </div>
                 </div>
-
-                {/* Remember Me and Forgot Password */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="remember"
-                      checked={rememberMe}
-                      onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-                    />
-                    <label htmlFor="remember" className="text-sm text-gray-700 cursor-pointer">
-                      Recordarme
-                    </label>
-                  </div>
-                  <a href="#" className="text-sm text-blue-600 hover:text-blue-700 hover:underline">
-                    ¿Olvidaste tu contraseña?
-                  </a>
-                </div>
-
                 {/* Error Message */}
                 {error && <p className="text-sm text-red-500">{error}</p>}
 
@@ -217,22 +199,6 @@ export default function LoginPage() {
                 >
                   {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
                 </Button>
-
-                {/* Demo Credentials */}
-                <div className="mt-6 rounded-md bg-blue-50 p-4">
-                  <p className="mb-2 text-xs font-semibold text-blue-900">Credenciales de demostración:</p>
-                  <div className="space-y-1 text-xs text-blue-700">
-                    <p>
-                      <span className="font-medium">Administrador:</span> admin@hospital.com
-                    </p>
-                    <p>
-                      <span className="font-medium">Supervisor:</span> supervisor@hospital.com
-                    </p>
-                    <p>
-                      <span className="font-medium">Técnico:</span> technician@hospital.com
-                    </p>
-                    <p className="mt-2 italic">Cualquier contraseña válida para usuarios registrados</p>
-                  </div>
                 </div>
               </div>
             </form>
