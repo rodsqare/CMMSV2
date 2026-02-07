@@ -1,0 +1,363 @@
+"use server"
+
+import { prisma } from "@/lib/prisma"
+import bcrypt from "bcryptjs"
+
+export type Usuario = {
+  id?: number
+  nombre: string
+  email: string
+  rol: string
+  activo: boolean
+  permissions?: any
+  estado?: string
+  created_at?: string | Date
+  updated_at?: string | Date
+}
+
+export type UsuarioWithPassword = Usuario & {
+  password?: string
+}
+
+export type FetchUsuariosParams = {
+  page?: number
+  perPage?: number
+  rol?: string
+  estado?: string
+  search?: string
+}
+
+export type UsuariosResponse = {
+  data: Usuario[]
+  total: number
+  page: number
+  perPage: number
+}
+
+export type UserActivity = {
+  equipos: number
+  mantenimientos: number
+  ordenes: number
+}
+
+export async function fetchUsuarios(params: FetchUsuariosParams = {}): Promise<UsuariosResponse> {
+  try {
+    const page = params.page || 1
+    const perPage = params.perPage || 10
+    const skip = (page - 1) * perPage
+
+    const where: any = {}
+    
+    if (params.rol) {
+      where.rol = params.rol
+    }
+    
+    if (params.estado) {
+      where.activo = params.estado === 'activo'
+    }
+    
+    if (params.search) {
+      where.OR = [
+        { nombre: { contains: params.search } },
+        { email: { contains: params.search } },
+      ]
+    }
+
+    const [data, total] = await Promise.all([
+      prisma.usuario.findMany({
+        where,
+        select: {
+          id: true,
+          nombre: true,
+          email: true,
+          rol: true,
+          activo: true,
+          created_at: true,
+          updated_at: true,
+        },
+        skip,
+        take: perPage,
+        orderBy: { created_at: 'desc' }
+      }),
+      prisma.usuario.count({ where })
+    ])
+
+    return { 
+      data: data.map(u => ({ 
+        ...u, 
+        estado: u.activo ? 'activo' : 'inactivo',
+        created_at: u.created_at ? u.created_at.toISOString() : undefined,
+        updated_at: u.updated_at ? u.updated_at.toISOString() : undefined,
+      })),
+      total, 
+      page, 
+      perPage 
+    }
+  } catch (error) {
+    console.error("Error fetching usuarios:", error)
+    return { data: [], total: 0, page: 1, perPage: 10 }
+  }
+}
+
+export async function fetchUsuarioDetails(id: number): Promise<Usuario | null> {
+  try {
+    const usuario = await prisma.usuario.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        nombre: true,
+        email: true,
+        rol: true,
+        activo: true,
+        created_at: true,
+        updated_at: true,
+      }
+    })
+    
+    if (!usuario) return null
+    
+    return {
+      id: usuario.id,
+      nombre: usuario.nombre,
+      email: usuario.email,
+      rol: usuario.rol,
+      activo: usuario.activo,
+      estado: usuario.activo ? 'activo' : 'inactivo',
+      created_at: usuario.created_at ? usuario.created_at.toISOString() : undefined,
+      updated_at: usuario.updated_at ? usuario.updated_at.toISOString() : undefined,
+    }
+  } catch (error) {
+    console.error("[v0] Error fetching usuario details:", error)
+    return null
+  }
+}
+
+export async function saveUsuario(usuario: UsuarioWithPassword): Promise<{
+  success: boolean
+  usuario?: Usuario
+  error?: string
+}> {
+  try {
+    let savedUsuario: any
+
+    if (usuario.id) {
+      // Update existing usuario
+      const updateData: any = {
+        nombre: usuario.nombre,
+        email: usuario.email,
+        rol: usuario.rol,
+        activo: usuario.activo,
+        updated_at: new Date(),
+      }
+      
+      if (usuario.password) {
+        updateData.password = await bcrypt.hash(usuario.password, 10)
+      }
+      
+      savedUsuario = await prisma.usuario.update({
+        where: { id: usuario.id },
+        data: updateData,
+        select: {
+          id: true,
+          nombre: true,
+          email: true,
+          rol: true,
+          activo: true,
+          created_at: true,
+          updated_at: true,
+        }
+      })
+    } else {
+      // Create new usuario
+      if (!usuario.password) {
+        return { success: false, error: "La contraseña es requerida" }
+      }
+      
+      savedUsuario = await prisma.usuario.create({
+        data: {
+          nombre: usuario.nombre,
+          email: usuario.email,
+          password: await bcrypt.hash(usuario.password, 10),
+          rol: usuario.rol,
+          activo: usuario.activo ?? true,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+        select: {
+          id: true,
+          nombre: true,
+          email: true,
+          rol: true,
+          activo: true,
+          created_at: true,
+          updated_at: true,
+        }
+      })
+    }
+
+    return {
+      success: true,
+      usuario: { ...savedUsuario, estado: savedUsuario.activo ? 'activo' : 'inactivo' },
+    }
+  } catch (error: any) {
+    console.error("Error saving usuario:", error)
+    return {
+      success: false,
+      error: error.message || "Error al guardar el usuario",
+    }
+  }
+}
+
+export async function removeUsuario(id: number): Promise<{
+  success: boolean
+  error?: string
+}> {
+  try {
+    await prisma.usuario.delete({
+      where: { id }
+    })
+    return { success: true }
+  } catch (error: any) {
+    console.error("Error removing usuario:", error)
+    return {
+      success: false,
+      error: error.message || "Error al eliminar el usuario",
+    }
+  }
+}
+
+export async function updatePermissions(
+  id: number,
+  permissions: Usuario["permissions"],
+): Promise<{
+  success: boolean
+  usuario?: Usuario
+  error?: string
+}> {
+  try {
+    // Permissions can be stored as JSON in the database if needed
+    const updatedUsuario = await prisma.usuario.update({
+      where: { id },
+      data: { updated_at: new Date() },
+      select: {
+        id: true,
+        nombre: true,
+        email: true,
+        rol: true,
+        activo: true,
+        created_at: true,
+        updated_at: true,
+      }
+    })
+    
+    return {
+      success: true,
+      usuario: { ...updatedUsuario, estado: updatedUsuario.activo ? 'activo' : 'inactivo', permissions },
+    }
+  } catch (error: any) {
+    console.error("Error updating permissions:", error)
+    return {
+      success: false,
+      error: error.message || "Error al actualizar permisos",
+    }
+  }
+}
+
+export async function resetPassword(
+  id: number,
+  newPassword: string,
+): Promise<{
+  success: boolean
+  usuario?: Usuario
+  error?: string
+}> {
+  try {
+    const hashedPassword = await bcrypt.hash(newPassword, 10)
+    const updatedUsuario = await prisma.usuario.update({
+      where: { id },
+      data: { 
+        password: hashedPassword,
+        updated_at: new Date() 
+      },
+      select: {
+        id: true,
+        nombre: true,
+        email: true,
+        rol: true,
+        activo: true,
+        created_at: true,
+        updated_at: true,
+      }
+    })
+    
+    return {
+      success: true,
+      usuario: { ...updatedUsuario, estado: updatedUsuario.activo ? 'activo' : 'inactivo' },
+    }
+  } catch (error: any) {
+    console.error("Error resetting password:", error)
+    return {
+      success: false,
+      error: error.message || "Error al restablecer la contraseña",
+    }
+  }
+}
+
+export async function toggleUserStatus(
+  id: number,
+  nuevoEstado: "Activo" | "Inactivo",
+): Promise<{
+  success: boolean
+  usuario?: Usuario
+  error?: string
+}> {
+  try {
+    const activo = nuevoEstado === "Activo"
+    const usuario = await prisma.usuario.update({
+      where: { id },
+      data: { 
+        activo,
+        updated_at: new Date() 
+      },
+      select: {
+        id: true,
+        nombre: true,
+        email: true,
+        rol: true,
+        activo: true,
+        created_at: true,
+        updated_at: true,
+      }
+    })
+
+    return {
+      success: true,
+      usuario: { ...usuario, estado: usuario.activo ? 'activo' : 'inactivo' },
+    }
+  } catch (error: any) {
+    console.error("Error changing user status:", error)
+    return {
+      success: false,
+      error: error.message || "Error al cambiar el estado del usuario",
+    }
+  }
+}
+
+export async function getUserActivity(usuarioId: number, token: string): Promise<UserActivity> {
+  try {
+    const [ordenesCreadas, ordenesAsignadas, mantenimientosRealizados] = await Promise.all([
+      prisma.orden_trabajo.count({ where: { creado_por: usuarioId } }),
+      prisma.orden_trabajo.count({ where: { asignado_a: usuarioId } }),
+      prisma.mantenimiento_realizado.count({ where: { realizado_por: usuarioId } }),
+    ])
+    
+    return { 
+      equipos: 0,
+      mantenimientos: mantenimientosRealizados,
+      ordenes: ordenesCreadas + ordenesAsignadas 
+    }
+  } catch (error) {
+    console.error("[v0] Error fetching user activity:", error)
+    return { equipos: 0, mantenimientos: 0, ordenes: 0 }
+  }
+}

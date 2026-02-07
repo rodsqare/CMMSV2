@@ -1,0 +1,33 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('historial_tareas', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('equipo_id');
+            $table->foreign('equipo_id')->references('id_equipo')->on('equipos')->onDelete('cascade');
+            $table->enum('tipo_tarea', ['mantenimiento', 'calibracion', 'inspeccion', 'reparacion']);
+            $table->text('descripcion')->nullable();
+            $table->date('fecha_tarea');
+            $table->string('resultado')->nullable();
+            $table->unsignedBigInteger('realizado_por_id')->nullable();
+            $table->foreign('realizado_por_id')->references('id')->on('usuarios')->onDelete('set null');
+            $table->timestamps();
+            
+            $table->index('equipo_id');
+            $table->index('realizado_por_id');
+            $table->index('fecha_tarea');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('historial_tareas');
+    }
+};
