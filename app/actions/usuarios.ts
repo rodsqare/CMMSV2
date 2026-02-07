@@ -138,21 +138,36 @@ export async function saveUsuario(usuario: UsuarioWithPassword): Promise<{
   error?: string
 }> {
   try {
+    // Map frontend fields to API fields
+    const email = usuario.email || usuario.correo || usuario.email
+    const activo = usuario.activo !== undefined ? usuario.activo : (usuario.estado?.toLowerCase() === 'activo' ? true : false)
+    
+    console.log("[v0] saveUsuario called with:", { 
+      id: usuario.id, 
+      nombre: usuario.nombre, 
+      email,
+      rol: usuario.rol,
+      activo,
+      hasPassword: !!usuario.password
+    })
+
     let savedUsuario: any
 
     if (usuario.id) {
       // Update existing usuario
       const updateData: any = {
         nombre: usuario.nombre,
-        email: usuario.email,
+        email: email,
         rol: usuario.rol,
-        activo: usuario.activo,
+        activo: activo,
         updated_at: new Date(),
       }
       
       if (usuario.password) {
         updateData.password = await bcrypt.hash(usuario.password, 10)
       }
+      
+      console.log("[v0] Updating usuario with data:", updateData)
       
       savedUsuario = await prisma.usuario.update({
         where: { id: usuario.id },
@@ -173,13 +188,20 @@ export async function saveUsuario(usuario: UsuarioWithPassword): Promise<{
         return { success: false, error: "La contraseña es requerida" }
       }
       
+      console.log("[v0] Creating new usuario with data:", { 
+        nombre: usuario.nombre, 
+        email,
+        rol: usuario.rol,
+        activo
+      })
+      
       savedUsuario = await prisma.usuario.create({
         data: {
           nombre: usuario.nombre,
-          email: usuario.email,
+          email: email,
           password: await bcrypt.hash(usuario.password, 10),
           rol: usuario.rol,
-          activo: usuario.activo ?? true,
+          activo: activo ?? true,
           created_at: new Date(),
           updated_at: new Date(),
         },
@@ -195,12 +217,22 @@ export async function saveUsuario(usuario: UsuarioWithPassword): Promise<{
       })
     }
 
+    console.log("[v0] Usuario saved successfully:", { 
+      id: savedUsuario.id,
+      nombre: savedUsuario.nombre,
+      activo: savedUsuario.activo
+    })
+
     return {
       success: true,
-      usuario: { ...savedUsuario, estado: savedUsuario.activo ? 'activo' : 'inactivo' },
+      usuario: { 
+        ...savedUsuario, 
+        estado: savedUsuario.activo ? 'activo' : 'inactivo',
+        correo: savedUsuario.email
+      },
     }
   } catch (error: any) {
-    console.error("Error saving usuario:", error)
+    console.error("[v0] Error saving usuario:", error)
     return {
       success: false,
       error: error.message || "Error al guardar el usuario",

@@ -1013,6 +1013,25 @@ export default function DashboardPage() {
     }
   }, [orderFilters, searchOrder]) // Removed duplicate and problematic useEffects that were causing infinite loops
 
+  // Sync newUser state when editingUser changes
+  useEffect(() => {
+    if (editingUser) {
+      // Explicitly copy all fields from editingUser to newUser
+      setNewUser({
+        id: editingUser.id,
+        nombre: editingUser.nombre,
+        correo: editingUser.correo || editingUser.email,
+        email: editingUser.email,
+        rol: editingUser.rol,
+        especialidad: editingUser.especialidad,
+        estado: editingUser.estado || (editingUser.activo ? "Activo" : "Inactivo"),
+        activo: editingUser.activo,
+      })
+      // Clear any previous errors
+      setUserFormErrors({})
+    }
+  }, [editingUser, showUserForm])
+
   const loadWorkOrders = async () => {
     setIsLoadingOrders(true)
     try {
@@ -3464,11 +3483,20 @@ export default function DashboardPage() {
     return (
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">{""}</h1>
-          <Button onClick={() => setShowUserForm(true)} className="bg-green-600 hover:bg-green-700">
-            <Plus className="h-4 w-4 mr-2" />
-            Nuevo Usuario
-          </Button>
+  <h1 className="text-3xl font-bold">{""}</h1>
+  <Button 
+    onClick={() => {
+      // Clean everything when opening for a new user
+      setEditingUser(null)
+      setNewUser({ estado: "Activo" })
+      setUserFormErrors({})
+      setShowUserForm(true)
+    }} 
+    className="bg-green-600 hover:bg-green-700"
+  >
+  <Plus className="h-4 w-4 mr-2" />
+  Nuevo Usuario
+  </Button>
         </div>
 
         <Card>
@@ -3622,11 +3650,19 @@ export default function DashboardPage() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => {
-                                    setEditingUser(user)
-                                    setNewUser(user)
-                                    setShowUserForm(true)
-                                  }}
+              onClick={() => {
+                // Map API fields to form fields when editing
+                setEditingUser(user)
+                setNewUser({
+                  id: user.id,
+                  nombre: user.nombre,
+                  correo: user.correo || user.email,
+                  rol: user.rol,
+                  especialidad: user.especialidad,
+                  estado: user.estado || (user.activo ? "Activo" : "Inactivo"),
+                })
+                setShowUserForm(true)
+              }}
                                   className="text-green-600 hover:text-green-700"
                                 >
                                   <Edit className="h-4 w-4" />
@@ -3759,7 +3795,18 @@ export default function DashboardPage() {
         </Card>
 
         {/* User Form Modal */}
-        <Dialog open={showUserForm} onOpenChange={setShowUserForm}>
+        <Dialog 
+          open={showUserForm} 
+          onOpenChange={(open) => {
+            setShowUserForm(open)
+            if (!open) {
+              // Clean up state when dialog closes
+              setEditingUser(null)
+              setNewUser({ estado: "Activo" })
+              setUserFormErrors({})
+            }
+          }}
+        >
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>{editingUser ? "Editar Usuario" : "Nuevo Usuario"}</DialogTitle>
@@ -3814,7 +3861,7 @@ export default function DashboardPage() {
               <div>
                 <Label htmlFor="rol">Rol *</Label>
                 <Select
-                  value={newUser.rol}
+                  value={newUser.rol || ""}
                   onValueChange={(value) => {
                     const rol = value as Usuario["rol"]
                     setNewUser({ ...newUser, rol })
@@ -3856,11 +3903,11 @@ export default function DashboardPage() {
               <div>
                 <Label htmlFor="estado">Estado</Label>
                 <Select
-                  value={newUser.estado}
+                  value={newUser.estado || "Activo"}
                   onValueChange={(value) => setNewUser({ ...newUser, estado: value as Usuario["estado"] })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={newUser.estado} />
+                    <SelectValue placeholder="Seleccionar estado" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Activo">Activo</SelectItem>
@@ -3877,6 +3924,7 @@ export default function DashboardPage() {
                   setShowUserForm(false)
                   setEditingUser(null)
                   setNewUser({ estado: "Activo" })
+                  setUserFormErrors({})
                 }}
                 disabled={usersLoading}
               >
