@@ -937,16 +937,16 @@ export default function DashboardPage() {
       }
 
       const response = await fetchUsuarios(params)
-
       setUsers(response.data)
-      setUsersTotalPages(response.last_page || 1) // Use last_page from API response
+      setUsersTotalPages(Math.ceil(response.total / usersPerPage))
     } catch (error) {
+      console.error("[v0] Error loading users:", error)
       toast({
         title: "Error al cargar usuarios",
         description:
           error instanceof Error
             ? error.message
-            : "No se pudo conectar al backend. Verifica que el servidor Laravel esté corriendo en http://localhost:8000",
+            : "No se pudo conectar al backend.",
         variant: "destructive",
       })
 

@@ -55,7 +55,8 @@ export async function fetchUsuarios(params: FetchUsuariosParams = {}): Promise<U
     }
     
     if (params.estado) {
-      where.activo = params.estado === 'activo'
+      // Handle both lowercase and capitalized versions
+      where.activo = params.estado.toLowerCase() === 'activo'
     }
     
     if (params.search) {
@@ -91,7 +92,8 @@ export async function fetchUsuarios(params: FetchUsuariosParams = {}): Promise<U
         ...u,
         correo: u.correo || u.email,
         especialidad: u.especialidad || "",
-        estado: u.activo ? 'activo' : 'inactivo',
+        estado: u.activo ? 'Activo' : 'Inactivo',
+        fecha_creacion: u.created_at ? u.created_at.toISOString() : undefined,
         created_at: u.created_at ? u.created_at.toISOString() : undefined,
         updated_at: u.updated_at ? u.updated_at.toISOString() : undefined,
       })),
