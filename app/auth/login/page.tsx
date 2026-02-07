@@ -188,18 +188,22 @@ export default function LoginPage() {
                     />
                   </div>
                 </div>
+
+
                 {/* Error Message */}
                 {error && <p className="text-sm text-red-500">{error}</p>}
 
                 {/* Submit Button */}
-                <Button
+                <Button>
                   type="submit"
                   className="w-full bg-green-600 hover:bg-green-700 text-white font-medium"
                   disabled={isLoading}
-                >
+              
                   {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
                 </Button>
-                </div>
+
+                {/* Demo Credentials */}
+                
               </div>
             </form>
           </CardContent>
