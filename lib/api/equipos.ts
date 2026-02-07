@@ -2,24 +2,36 @@ import { apiClient } from "./client"
 import { serverApiClient } from "./server-client"
 
 export interface Equipo {
-  id?: number
-  codigo: string
-  nombre: string
-  tipo: string
-  marca?: string
-  modelo?: string
-  numero_serie?: string
-  ubicacion?: string
-  estado: string
-  criticidad: string
+  id: number
+  numero_serie: string
+  nombre_equipo: string
+  modelo: string
+  fabricante: string
+  ubicacion: string
+  estado: "operativo" | "mantenimiento" | "en reparacion" | "fuera de servicio" | "nuevo"
+  voltaje?: string
+  frecuencia?: string
   fecha_adquisicion?: string
-  vida_util_anos?: number
-  valor_adquisicion?: number
-  descripcion?: string
-  especificaciones?: any
-  ultima_mantencion?: string
-  proxima_mantencion?: string
-  horas_operacion?: number
+  fecha_instalacion?: string
+  fecha_ultimo_mantenimiento?: string
+  proximo_mantenimiento?: string
+  observaciones?: string
+  codigo_institucional?: string
+  servicio?: string
+  vencimiento_garantia?: string
+  fecha_ingreso?: string
+  procedencia?: string
+  potencia?: string
+  corriente?: string
+  otros_especificaciones?: string
+  accesorios_consumibles?: string
+  estado_equipo?: "nuevo" | "operativo" | "no_operable"
+  manual_usuario?: boolean
+  manual_servicio?: boolean
+  nivel_riesgo?: "alto" | "medio" | "bajo"
+  proveedor_nombre?: string
+  proveedor_direccion?: string
+  proveedor_telefono?: string
   created_at?: string
   updated_at?: string
 }
@@ -89,8 +101,10 @@ export const fetchEquipoDetails = getEquipo
 export async function createEquipo(data: Omit<Equipo, "id" | "created_at" | "updated_at">): Promise<Equipo> {
   const transformedData = {
     ...data,
+    // Ensure estado uses correct format
     estado: data.estado || "operativo",
-    criticidad: data.criticidad || "media",
+    // Map any underscore fields to the correct format
+    estado_equipo: data.estado_equipo || "operativo",
   }
 
   console.log("[v0] Sending equipment data to backend:", transformedData)
@@ -109,9 +123,26 @@ export async function createEquipo(data: Omit<Equipo, "id" | "created_at" | "upd
 export async function updateEquipo(id: number, data: Partial<Equipo>): Promise<Equipo> {
   const client = isServer ? serverApiClient : apiClient
 
-  console.log("[v0] updateEquipo - payload:", JSON.stringify(data, null, 2))
+  // Otherwise try to get from localStorage if on client side
+  let usuarioId: number | null = (data.usuario_id as number) || null
 
-  return await client.put(`/equipos/${id}`, data)
+  if (!usuarioId && typeof window !== "undefined") {
+    const storedUserId = localStorage.getItem("userId")
+    if (storedUserId) {
+      usuarioId = Number.parseInt(storedUserId, 10)
+    }
+  }
+
+  console.log("[v0] updateEquipo - usuarioId:", usuarioId)
+
+  const dataWithUserId = {
+    ...data,
+    usuario_id: usuarioId,
+  }
+
+  console.log("[v0] updateEquipo - full payload:", JSON.stringify(dataWithUserId, null, 2))
+
+  return await client.put(`/equipos/${id}`, dataWithUserId)
 }
 
 export async function deleteEquipo(id: number, userId?: string): Promise<void> {

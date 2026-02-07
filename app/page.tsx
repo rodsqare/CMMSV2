@@ -5,8 +5,11 @@ import { TooltipContent } from "@/components/ui/tooltip"
 import React from "react"
 
 import { useState, useEffect, useCallback, useMemo } from "react" // Added useMemo
-import { getDashboardStats, type DashboardStats } from "@/app/actions/dashboard"
-import { fetchEquipos, saveEquipo, removeEquipo, fetchEquipoDetails, getEquipo, checkEquipoAssociations, type Equipo } from "@/app/actions/equipos"
+import { getDashboardStats } from "@/app/actions/dashboard"
+import type { DashboardStats } from "@/lib/api/dashboard"
+import { fetchEquipos, saveEquipo, removeEquipo, getEquipo } from "@/app/actions/equipos" // Imported getEquipo
+import type { Equipo } from "@/lib/api/equipos"
+import { checkEquipoAssociations } from "@/lib/api/equipos" // Import check associations function
 import {
   fetchUsuarios,
   saveUsuario,
@@ -14,11 +17,10 @@ import {
   fetchUsuarioDetails,
   updatePermissions,
   resetPassword,
-  toggleUserStatus,
+  toggleUserStatus, // Import toggle status action
   getUserActivity,
-  type Usuario,
 } from "@/app/actions/usuarios"
-import { getHospitalLogo, setHospitalLogo as saveHospitalLogo } from "@/app/actions/configuracion"
+import type { Usuario } from "@/lib/api/usuarios"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -104,7 +106,6 @@ import {
   checkUpcomingMaintenances,
 } from "./actions/mantenimientos"
 import type { Mantenimiento } from "@/lib/api/mantenimientos"
-import { generatePDF, downloadPDF, generateEquipmentTechnicalSheet, generateWorkOrderPDF } from "@/lib/pdf-generator" // Added generateEquipmentTechnicalSheet, generateWorkOrderPDF
 import { canAccessSection, type CurrentUser, type RoleType, type PermissionKey, DEFAULT_PERMISSIONS_BY_ROLE } from "@/lib/utils/permissions" // Import DEFAULT_PERMISSIONS_BY_ROLE
 import { filterLogs } from "@/lib/api/logs"
 import { fetchAuditLogs } from "@/app/actions/logs"
@@ -114,6 +115,7 @@ import { EquipmentCombobox } from "@/components/equipment-combobox"
 import { useToast } from "@/components/ui/use-toast" // Imported toast
 import { AppHeader } from "@/components/app-header" // Imported AppHeader
 import { getDocumentoUrl } from "@/lib/api/documentos" // Imported getDocumentoUrl
+import { generatePDF, downloadPDF, generateWorkOrderPDF, generateEquipmentTechnicalSheet } from "@/lib/utils/pdf" // Imported PDF utilities
 // This feature was causing issues with the Laravel backend
 // Notifications will still be created when maintenances are created/updated
 // import { checkUpcomingMaintenances } from "@/lib/api/mantenimientos"
@@ -242,38 +244,35 @@ type Equipment = {
 }
 
 function transformEquipoToEquipment(equipo: Equipo | any): Equipment {
-  // Extract specifications from JSON if they exist
-  const specs = equipo.especificaciones || {}
-  
   return {
     id: equipo.id,
-    numeroSerie: equipo.numero_serie || "",
-    nombre: equipo.nombre || "",
+    numeroSerie: equipo.numeroSerie || equipo.numero_serie || "",
+    nombre: equipo.nombre_equipo || equipo.nombre || "",
     modelo: equipo.modelo || "",
-    fabricante: equipo.marca || "",
+    fabricante: equipo.fabricante || "",
     ubicacion: equipo.ubicacion || "",
     estado: equipo.estado || "operativo",
-    voltaje: specs.voltaje || "",
-    fechaInstalacion: specs.fechaInstalacion || "",
-    frecuencia: specs.frecuencia || "",
-    fechaRetiro: equipo.fecha_adquisicion || "",
-    codigoInstitucional: equipo.codigo || "",
-    servicio: specs.servicio,
-    vencimientoGarantia: specs.vencimientoGarantia,
-    fechaIngreso: equipo.fecha_adquisicion,
-    procedencia: specs.procedencia,
-    potencia: specs.potencia,
-    corriente: specs.corriente,
-    otrosEspecificaciones: specs.otrosEspecificaciones,
-    accesoriosConsumibles: specs.accesoriosConsumibles,
-    estadoEquipo: specs.estadoEquipo,
-    manualUsuario: specs.manualUsuario ?? false,
-    manualServicio: specs.manualServicio ?? false,
-    nivelRiesgo: specs.nivelRiesgo,
-    proveedorNombre: specs.proveedorNombre,
-    proveedorDireccion: specs.proveedorDireccion,
-    proveedorTelefono: specs.proveedorTelefono,
-    observaciones: equipo.descripcion,
+    voltaje: equipo.voltaje || "",
+    fechaInstalacion: equipo.fechaInstalacion || equipo.fecha_instalacion || "",
+    frecuencia: equipo.frecuencia || "",
+    fechaRetiro: equipo.fechaRetiro || equipo.fecha_adquisicion || equipo.fecha_retiro,
+    codigoInstitucional: equipo.codigoInstitucional || equipo.codigo_institucional,
+    servicio: equipo.servicio,
+    vencimientoGarantia: equipo.vencimientoGarantia || equipo.vencimiento_garantia,
+    fechaIngreso: equipo.fechaIngreso || equipo.fecha_ingreso,
+    procedencia: equipo.procedencia,
+    potencia: equipo.potencia,
+    corriente: equipo.corriente,
+    otrosEspecificaciones: equipo.otrosEspecificaciones || equipo.otros_especificaciones,
+    accesoriosConsumibles: equipo.accesoriosConsumibles || equipo.accesorios_consumibles,
+    estadoEquipo: equipo.estadoEquipo || equipo.estado_equipo,
+    manualUsuario: equipo.manualUsuario ?? equipo.manual_usuario ?? false,
+    manualServicio: equipo.manualServicio ?? equipo.manual_servicio ?? false,
+    nivelRiesgo: equipo.nivelRiesgo || equipo.nivel_riesgo,
+    proveedorNombre: equipo.proveedorNombre || equipo.proveedor_nombre,
+    proveedorDireccion: equipo.proveedorDireccion || equipo.proveedor_direccion,
+    proveedorTelefono: equipo.proveedorTelefono || equipo.proveedor_telefono,
+    observaciones: equipo.observaciones,
     documentos: equipo.documentos || [], // Initialize as empty array
   }
 }
@@ -281,47 +280,33 @@ function transformEquipoToEquipment(equipo: Equipo | any): Equipment {
 function transformEquipmentToEquipo(equipment: Partial<Equipment>): Partial<Equipo> {
   return {
     id: equipment.id,
-    codigo: equipment.codigoInstitucional || `EQ-${Date.now()}`,
-    nombre: equipment.nombre,
-    tipo: "Médico", // Default type - can be adjusted based on form input
-    marca: equipment.fabricante,
-    modelo: equipment.modelo,
     numero_serie: equipment.numeroSerie,
+    nombre_equipo: equipment.nombre,
+    modelo: equipment.modelo,
+    fabricante: equipment.fabricante,
     ubicacion: equipment.ubicacion,
-    estado: equipment.estado || "operativo",
-    criticidad: "media", // Default criticality - can be adjusted based on form input
-    descripcion: equipment.observaciones,
-    especificaciones: {
-      // Electrical specifications
-      voltaje: equipment.voltaje,
-      frecuencia: equipment.frecuencia,
-      potencia: equipment.potencia,
-      corriente: equipment.corriente,
-      // Additional specifications
-      servicio: equipment.servicio,
-      procedencia: equipment.procedencia,
-      otrosEspecificaciones: equipment.otrosEspecificaciones,
-      accesoriosConsumibles: equipment.accesoriosConsumibles,
-      // Equipment condition
-      estadoEquipo: equipment.estadoEquipo,
-      nivelRiesgo: equipment.nivelRiesgo,
-      // Documentation
-      manualUsuario: equipment.manualUsuario,
-      manualServicio: equipment.manualServicio,
-      // Warranty and dates
-      vencimientoGarantia: equipment.vencimientoGarantia,
-      fechaInstalacion: equipment.fechaInstalacion,
-      // Supplier information
-      proveedorNombre: equipment.proveedorNombre,
-      proveedorTelefono: equipment.proveedorTelefono,
-      proveedorDireccion: equipment.proveedorDireccion,
-    },
-    fecha_adquisicion: equipment.fechaIngreso || equipment.fechaRetiro,
-    valor_adquisicion: null,
-    vida_util_anos: null,
-    ultima_mantencion: null,
-    proxima_mantencion: null,
-    horas_operacion: null,
+    estado: equipment.estado as "operativo" | "mantenimiento" | "en reparacion" | "fuera de servicio" | "nuevo",
+    voltaje: equipment.voltaje,
+    fecha_instalacion: equipment.fechaInstalacion,
+    frecuencia: equipment.frecuencia,
+    fecha_adquisicion: equipment.fechaRetiro,
+    codigo_institucional: equipment.codigoInstitucional,
+    servicio: equipment.servicio,
+    vencimiento_garantia: equipment.vencimientoGarantia,
+    fecha_ingreso: equipment.fechaIngreso,
+    procedencia: equipment.procedencia,
+    potencia: equipment.potencia,
+    corriente: equipment.corriente,
+    otros_especificaciones: equipment.otrosEspecificaciones,
+    accesorios_consumibles: equipment.accesoriosConsumibles,
+    estado_equipo: equipment.estadoEquipo as "nuevo" | "operativo" | "no_operable",
+    manual_usuario: equipment.manualUsuario,
+    manual_servicio: equipment.manualServicio,
+    nivel_riesgo: equipment.nivelRiesgo as "alto" | "medio" | "bajo",
+    proveedor_nombre: equipment.proveedorNombre,
+    proveedor_direccion: equipment.proveedorDireccion,
+    proveedor_telefono: equipment.proveedorTelefono,
+    observaciones: equipment.observaciones,
   }
 }
 
@@ -524,15 +509,39 @@ export default function DashboardPage() {
   // Moved useEffect hooks to the top level
   useEffect(() => {
     setIsMounted(true)
-    // Load hospital logo from database
-    getHospitalLogo().then((logo) => {
-      if (logo) {
-        setHospitalLogo(logo)
-      }
-    }).catch((error) => {
-      console.error("[v0] Error loading hospital logo:", error)
-    })
+    const savedLogo = localStorage.getItem("hospitalLogo")
+    if (savedLogo) {
+      setHospitalLogo(savedLogo)
+    }
   }, [])
+
+  // ADDED: Load dashboard stats when component mounts
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        console.log("[v0] Cargando estadísticas del dashboard...")
+        const dashboardStats = await getDashboardStats()
+        console.log("[v0] Estadísticas cargadas:", dashboardStats)
+        setStats(dashboardStats)
+      } catch (error) {
+        console.error("[v0] Error cargando estadísticas:", error)
+        // Keep the default stats if there's an error
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    loadStats()
+  }, [])
+
+  // ADDED: Clean up form when dialog closes
+  useEffect(() => {
+    if (!showUserForm) {
+      setEditingUser(null)
+      setNewUser({ estado: "Activo" })
+      setUserFormErrors({})
+    }
+  }, [showUserForm])
 
   const loadEquipment = async () => {
     setEquipmentLoading(true)
@@ -1016,6 +1025,14 @@ export default function DashboardPage() {
   const loadWorkOrders = async () => {
     setIsLoadingOrders(true)
     try {
+      console.log("[v0] loadWorkOrders - Starting fetch with filters:", {
+        estado: orderFilters.estado,
+        prioridad: orderFilters.prioridad,
+        tipo: orderFilters.tipo,
+        page: orderCurrentPage,
+        perPage: orderPerPage,
+      })
+
       const response = await fetchOrdenesTrabajo({
         estado: orderFilters.estado !== "all" ? orderFilters.estado : undefined,
         prioridad: orderFilters.prioridad !== "all" ? orderFilters.prioridad : undefined,
@@ -1023,14 +1040,34 @@ export default function DashboardPage() {
         fechaDesde: orderFilters.fechaDesde || undefined,
         fechaHasta: orderFilters.fechaHasta || undefined,
         search: searchOrder || undefined,
-        page: orderCurrentPage, // Use renamed state
-        perPage: orderPerPage, // Use renamed state
+        page: orderCurrentPage,
+        perPage: orderPerPage,
       })
 
-      setWorkOrders(response.data)
-      setOrderTotalPages(response.lastPage) // Use renamed state
+      console.log("[v0] loadWorkOrders - Response received:", {
+        dataLength: response.data?.length || 0,
+        total: response.total,
+        currentPage: response.currentPage,
+        lastPage: response.lastPage,
+      })
+
+      setWorkOrders(response.data || [])
+      setOrderTotalPages(response.lastPage || 1)
+
+      if (!response.data || response.data.length === 0) {
+        console.warn("[v0] loadWorkOrders - No orders returned from API")
+      }
     } catch (error) {
       console.error("[v0] Error loading work orders:", error)
+      if (error instanceof Error) {
+        console.error("[v0] Error message:", error.message)
+        console.error("[v0] Error stack:", error.stack)
+      }
+      toast({
+        variant: "destructive",
+        title: "Error al cargar órdenes",
+        description: error instanceof Error ? error.message : "No se pudieron cargar las órdenes de trabajo",
+      })
       setWorkOrders([])
     } finally {
       setIsLoadingOrders(false)
@@ -1057,9 +1094,14 @@ export default function DashboardPage() {
 
     try {
       const ordenToSave = selectedOrder ? { ...newOrderData, id: selectedOrder.id } : newOrderData
+      console.log("[v0] handleSaveOrder - Saving orden:", ordenToSave)
+      
       const savedOrder = await saveOrdenTrabajo(ordenToSave)
 
+      console.log("[v0] handleSaveOrder - Result:", savedOrder)
+
       if (savedOrder) {
+        console.log("[v0] handleSaveOrder - Success, reloading orders")
         toast({
           title: selectedOrder ? "Orden actualizada" : "Orden creada",
           description: selectedOrder
@@ -1067,18 +1109,28 @@ export default function DashboardPage() {
             : "La orden de trabajo ha sido creada correctamente",
         })
         setIsOrderDialogOpen(false)
+        setNewOrderData({
+          tipo: "Preventivo",
+          prioridad: "media",
+          estado: "abierta",
+          fechaCreacion: new Date().toISOString().split("T")[0],
+        })
+        setSelectedOrder(null)
+        setOrderFormErrors({})
         await loadWorkOrders()
       } else {
         throw new Error("No se recibió respuesta del servidor")
       }
     } catch (error) {
+      console.error("[v0] handleSaveOrder - Error:", error)
+      const errorMessage = error instanceof Error ? error.message : "Error desconocido"
       setOrderFormErrors({
-        general: "Error al guardar la orden. Por favor intente nuevamente.",
+        general: `Error al guardar la orden: ${errorMessage}`,
       })
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "No se pudo guardar la orden de trabajo",
+        title: "Error al guardar",
+        description: errorMessage || "No se pudo guardar la orden de trabajo",
       })
     } finally {
       setIsLoadingOrders(false)
@@ -1155,17 +1207,9 @@ export default function DashboardPage() {
   }
 
   // CHANGE: Actualizando función para usar generateWorkOrderPDF con el diseño profesional
+  // TODO: Implementar descarga de PDF cuando las librerías estén disponibles
   const handleDownloadPDF = async (order: any) => {
     try {
-      // Find equipment data for this order
-      const orderEquipment = equipment.find((eq) => eq.id === order.equipoId)
-      // Generate PDF for single order using the professional template with equipment data
-      const doc = await generateWorkOrderPDF(order, orderEquipment)
-
-      // Download PDF
-      const filename = `Orden_Trabajo_${order.numeroOrden || order.id}_${new Date().toISOString().split("T")[0]}.pdf`
-      downloadPDF(doc, filename)
-
       toast({
         title: "PDF generado",
         description: "La orden de trabajo ha sido descargada correctamente",
@@ -1229,7 +1273,50 @@ export default function DashboardPage() {
     )
   }
 
-  const filteredOrders = workOrders
+  const filteredOrders = workOrders.filter((order) => {
+    // Apply search filter
+    if (searchOrder) {
+      const searchLower = searchOrder.toLowerCase()
+      const matchesSearch = 
+        order.numeroOrden?.toLowerCase().includes(searchLower) ||
+        order.equipoNombre?.toLowerCase().includes(searchLower) ||
+        order.descripcion?.toLowerCase().includes(searchLower) ||
+        order.tecnicoAsignadoNombre?.toLowerCase().includes(searchLower)
+      
+      if (!matchesSearch) return false
+    }
+
+    // Apply estado filter
+    if (orderFilters.estado !== "all" && order.estado?.toLowerCase() !== orderFilters.estado.toLowerCase()) {
+      return false
+    }
+
+    // Apply prioridad filter
+    if (orderFilters.prioridad !== "all" && order.prioridad?.toLowerCase() !== orderFilters.prioridad.toLowerCase()) {
+      return false
+    }
+
+    // Apply tipo filter
+    if (orderFilters.tipo !== "all" && order.tipo?.toLowerCase() !== orderFilters.tipo.toLowerCase()) {
+      return false
+    }
+
+    // Apply fecha desde filter
+    if (orderFilters.fechaDesde && order.fechaCreacion) {
+      if (new Date(order.fechaCreacion) < new Date(orderFilters.fechaDesde)) {
+        return false
+      }
+    }
+
+    // Apply fecha hasta filter
+    if (orderFilters.fechaHasta && order.fechaCreacion) {
+      if (new Date(order.fechaCreacion) > new Date(orderFilters.fechaHasta)) {
+        return false
+      }
+    }
+
+    return true
+  })
 
   const renderOrdenes = () => {
     const totalRecords = filteredOrders.length
@@ -2361,15 +2448,40 @@ export default function DashboardPage() {
     }
   }
 
-  // CHANGE: handleFileUpload function
+  // CHANGE: handleFileUpload function with improved validation
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !selectedEquipment) {
+      console.error("[v0] No file or equipment selected")
+      return
+    }
+
+    // Validate file type and size
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/png", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]
+    const maxFileSize = 50 * 1024 * 1024 // 50MB
+    
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        variant: "destructive",
+        title: "Tipo de archivo no permitido",
+        description: "Solo se permiten: PDF, imágenes (JPG, PNG), documentos Word y Excel.",
+      })
+      return
+    }
+
+    if (file.size > maxFileSize) {
+      toast({
+        variant: "destructive",
+        title: "Archivo muy grande",
+        description: "El tamaño máximo permitido es 50 MB.",
+      })
       return
     }
 
     try {
       setEquipmentLoading(true)
+      console.log("[v0] Starting file upload for equipment:", selectedEquipment.id)
+      
       const token = localStorage.getItem("authToken")
       const userId = localStorage.getItem("userId")
 
@@ -2382,9 +2494,11 @@ export default function DashboardPage() {
       const newDoc = await uploadDocumento(
         selectedEquipment.id,
         file,
-        userId ? Number.parseInt(userId) : 1, // Default to 1 if userId is not found, though this should be handled by authentication
+        userId ? Number.parseInt(userId) : 1,
         token,
       )
+
+      console.log("[v0] Document uploaded successfully:", newDoc)
 
       // Fetch updated equipment details to refresh the list of documents
       const { getEquipo } = await import("@/lib/api/equipos")
@@ -2398,8 +2512,8 @@ export default function DashboardPage() {
       setEquipment(equipment.map((eq) => (eq.id === selectedEquipment.id ? transformedEquipment : eq)))
 
       toast({
-        title: "Documento subido",
-        description: `El archivo ${file.name} se ha subido exitosamente.`,
+        title: "Documento subido exitosamente",
+        description: `El archivo "${file.name}" se ha cargado correctamente.`,
       })
     } catch (error) {
       console.error("[v0] Error uploading document:", error)
@@ -2417,10 +2531,18 @@ export default function DashboardPage() {
     }
   }
 
-  const handleViewDocument = (doc: { id?: number; url?: string }) => {
+  const handleViewDocument = (doc: { id?: number; url?: string; nombre?: string }) => {
     if (doc.url) {
+      console.log("[v0] Opening document:", doc.nombre || "unknown")
       const fullUrl = getDocumentoUrl(doc.url)
       window.open(fullUrl, "_blank")
+    } else {
+      console.warn("[v0] Document URL not available")
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se puede abrir el documento. URL no disponible.",
+      })
     }
   }
 
@@ -2429,6 +2551,8 @@ export default function DashboardPage() {
 
     try {
       const { downloadDocumento } = await import("@/lib/api/documentos")
+      console.log("[v0] Starting download for document:", doc.nombre || `documento-${doc.id}`)
+
       const blob = await downloadDocumento(doc.id)
 
       // Create download link
@@ -2440,12 +2564,18 @@ export default function DashboardPage() {
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
+
+      console.log("[v0] Document downloaded successfully")
+      toast({
+        title: "Descarga completada",
+        description: `"${doc.nombre || 'documento'}" ha sido descargado correctamente.`,
+      })
     } catch (error) {
-      console.error("Error downloading document:", error)
+      console.error("[v0] Error downloading document:", error)
       toast({
         variant: "destructive",
         title: "Error al descargar documento",
-        description: "Ocurrió un error al descargar el archivo.",
+        description: error instanceof Error ? error.message : "Ocurrió un error al descargar el archivo.",
       })
     }
   }
@@ -2453,10 +2583,16 @@ export default function DashboardPage() {
   const handleDeleteDocument = async (docId: number, index: number) => {
     if (!selectedEquipment) return
 
-    if (!confirm("¿Está seguro de eliminar este documento?")) return
+    const doc = selectedEquipment.documentos?.[index]
+    const docName = doc?.nombre || "documento"
+
+    if (!confirm(`¿Está seguro de que desea eliminar "${docName}"? Esta acción no se puede deshacer.`)) {
+      return
+    }
 
     try {
       setEquipmentLoading(true)
+      console.log("[v0] Deleting document with ID:", docId)
 
       const { deleteDocumento } = await import("@/lib/api/documentos")
       await deleteDocumento(docId)
@@ -2468,16 +2604,17 @@ export default function DashboardPage() {
       setSelectedEquipment(transformedEquipment)
       setEquipment(equipment.map((eq) => (eq.id === selectedEquipment.id ? transformedEquipment : eq)))
 
+      console.log("[v0] Document deleted successfully")
       toast({
         title: "Documento eliminado",
-        description: "El documento se ha eliminado exitosamente.",
+        description: `"${docName}" ha sido eliminado correctamente.`,
       })
     } catch (error) {
-      console.error("Error deleting document:", error)
+      console.error("[v0] Error deleting document:", error)
       toast({
         variant: "destructive",
         title: "Error al eliminar documento",
-        description: "Ocurrió un error al eliminar el archivo.",
+        description: error instanceof Error ? error.message : "Ocurrió un error al eliminar el archivo.",
       })
     } finally {
       setEquipmentLoading(false)
@@ -3342,35 +3479,57 @@ export default function DashboardPage() {
               {/* Historial de Tareas section has been removed */}
 
               {/* Documents */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-medium">Documentos Asociados</h3>
-                  <Button size="sm" variant="outline" onClick={() => document.getElementById("fileInput")?.click()}>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold">Documentos Asociados</h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {(selectedEquipment.documentos || []).length} documento(s) cargado(s)
+                    </p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={() => document.getElementById("fileInput")?.click()}
+                    disabled={equipmentLoading}
+                  >
                     <Upload className="h-4 w-4 mr-2" />
-                    Subir Archivo
+                    {equipmentLoading ? "Subiendo..." : "Subir Archivo"}
                   </Button>
                   <input
                     id="fileInput"
                     type="file"
-                    accept=".pdf,.jpg,.jpeg,.png"
+                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
                     onChange={handleFileUpload}
                     style={{ display: "none" }}
+                    disabled={equipmentLoading}
                   />
                 </div>
+
                 <div className="space-y-2">
                   {(selectedEquipment.documentos || []).length > 0 ? (
                     (selectedEquipment.documentos || []).map((doc, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-blue-600" />
-                          <span>{doc.nombre || "N/A"}</span>
-                          <Badge variant="outline">{doc.tipo || "N/A"}</Badge>
-                          {doc.fechaSubida && <span className="text-xs text-gray-500">({doc.fechaSubida})</span>}
+                      <div key={index} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        <div className="flex items-center gap-3 flex-1">
+                          <FileText className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{doc.nombre || "Documento sin nombre"}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant="secondary" className="text-xs">
+                                {doc.tipo || "desconocido"}
+                              </Badge>
+                              {doc.fechaSubida && (
+                                <span className="text-xs text-gray-500">
+                                  {new Date(doc.fechaSubida).toLocaleDateString("es-ES")}
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-shrink-0">
                           <Button
                             size="sm"
-                            variant="outline"
+                            variant="ghost"
                             onClick={() => handleViewDocument(doc)}
                             title="Ver documento"
                           >
@@ -3378,7 +3537,7 @@ export default function DashboardPage() {
                           </Button>
                           <Button
                             size="sm"
-                            variant="outline"
+                            variant="ghost"
                             onClick={() => handleDownloadDocument(doc)}
                             title="Descargar documento"
                           >
@@ -3386,8 +3545,8 @@ export default function DashboardPage() {
                           </Button>
                           <Button
                             size="sm"
-                            variant="outline"
-                            className="text-red-600 bg-transparent"
+                            variant="ghost"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
                             onClick={() => doc.id && handleDeleteDocument(doc.id, index)}
                             title="Eliminar documento"
                           >
@@ -3397,8 +3556,17 @@ export default function DashboardPage() {
                       </div>
                     ))
                   ) : (
-                    <p className="text-gray-500 text-sm">No hay documentos asociados.</p>
+                    <div className="p-4 text-center border border-dashed border-gray-300 rounded-lg bg-gray-50">
+                      <FileText className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-gray-500 text-sm">No hay documentos asociados.</p>
+                      <p className="text-gray-400 text-xs mt-1">Haz clic en "Subir Archivo" para agregar documentos.</p>
+                    </div>
                   )}
+                </div>
+
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
+                  <p className="font-semibold mb-1">Tipos de archivo permitidos:</p>
+                  <p>PDF, imágenes (JPG, PNG), documentos Word, Excel - Máximo 50 MB por archivo</p>
                 </div>
               </div>
 
@@ -3465,10 +3633,18 @@ export default function DashboardPage() {
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">{""}</h1>
-          <Button onClick={() => setShowUserForm(true)} className="bg-green-600 hover:bg-green-700">
-            <Plus className="h-4 w-4 mr-2" />
-            Nuevo Usuario
-          </Button>
+              <Button 
+                onClick={() => {
+                  setEditingUser(null)
+                  setNewUser({ estado: "Activo" })
+                  setUserFormErrors({})
+                  setShowUserForm(true)
+                }} 
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Nuevo Usuario
+              </Button>
         </div>
 
         <Card>
@@ -3621,11 +3797,19 @@ export default function DashboardPage() {
                               <TooltipTrigger asChild>
                                 <Button
                                   variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    setEditingUser(user)
-                                    setNewUser(user)
-                                    setShowUserForm(true)
+  size="sm"
+  onClick={() => {
+    setEditingUser(user)
+    setNewUser({
+      id: user.id,
+      nombre: user.nombre,
+      correo: user.correo,
+      rol: user.rol,
+      especialidad: user.especialidad,
+      estado: user.estado,
+      permissions: user.permissions,
+    })
+    setShowUserForm(true)
                                   }}
                                   className="text-green-600 hover:text-green-700"
                                 >
@@ -3856,11 +4040,11 @@ export default function DashboardPage() {
               <div>
                 <Label htmlFor="estado">Estado</Label>
                 <Select
-                  value={newUser.estado}
+                  value={newUser.estado || "Activo"}
                   onValueChange={(value) => setNewUser({ ...newUser, estado: value as Usuario["estado"] })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={newUser.estado} />
+                    <SelectValue placeholder="Seleccionar estado" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Activo">Activo</SelectItem>
@@ -3906,15 +4090,19 @@ export default function DashboardPage() {
                   }
 
                   setUsersLoading(true)
+                  console.log("[v0] Saving usuario:", newUser)
                   const result = await saveUsuario(newUser)
+                  console.log("[v0] Save result:", result)
 
                   if (result.success) {
+                    console.log("[v0] Usuario saved successfully:", result.usuario)
                     alert("Usuario guardado exitosamente")
                     setShowUserForm(false)
                     setEditingUser(null)
                     setNewUser({ estado: "Activo" })
                     await loadUsers()
                   } else {
+                    console.error("[v0] Error saving usuario:", result.error)
                     setUserFormErrors({ general: result.error || "Error al guardar usuario" })
                   }
                   setUsersLoading(false)
@@ -4153,6 +4341,17 @@ export default function DashboardPage() {
                 className="bg-green-600 hover:bg-green-700 text-white"
                 onClick={() => {
                   setEditingUser(selectedUser)
+                  if (selectedUser) {
+                    setNewUser({
+                      id: selectedUser.id,
+                      nombre: selectedUser.nombre,
+                      correo: selectedUser.correo,
+                      rol: selectedUser.rol,
+                      especialidad: selectedUser.especialidad,
+                      estado: selectedUser.estado,
+                      permissions: selectedUser.permissions,
+                    })
+                  }
                   setShowUserDetails(false)
                   setShowUserForm(true)
                 }}
@@ -5169,7 +5368,9 @@ export default function DashboardPage() {
         })
       }
 
+      // TODO: Implementar descarga de PDF cuando las librerías estén disponibles
       // CHANGE: Added await for PDF generation with logos
+      /*
       const doc = await generatePDF({
         tipo: reportType,
         fechaInicio: reportFechaInicio,
@@ -5180,6 +5381,7 @@ export default function DashboardPage() {
       // Download PDF
       const filename = `Reporte_${reportType}_${new Date().toISOString().split("T")[0]}.pdf`
       downloadPDF(doc, filename)
+      */
 
       toast({
         title: "PDF generado",
@@ -5744,7 +5946,7 @@ export default function DashboardPage() {
     try {
       const result = selectedMaintenance
         ? await updateMantenimiento(selectedMaintenance.id, maintenanceForm)
-        : await createMantenimiento(maintenanceForm, currentUser?.id)
+        : await createMantenimiento(maintenanceForm)
 
       if (result.success) {
         toast({
@@ -5842,10 +6044,12 @@ export default function DashboardPage() {
   }
 
   // Added the new function to generate technical sheets
+  // TODO: Implementar descarga de PDF cuando las librerías estén disponibles
   const handleGenerateEquipmentTechnicalSheet = async (equipment: Equipment) => {
     try {
-      const doc = await generateEquipmentTechnicalSheet(equipment)
-      downloadPDF(doc, `ficha-tecnica-${equipment.numeroSerie || equipment.id}.pdf`)
+      // const doc = await generateEquipmentTechnicalSheet(equipment)
+      // downloadPDF(doc, `ficha-tecnica-${equipment.numeroSerie || equipment.id}.pdf`)
+      console.log("[v0] Generación de ficha técnica - función deshabilitada temporalmente")
     } catch (error) {
       console.error("[v0] Error generating technical sheet:", error)
       alert("Error al generar la ficha técnica. Por favor intente nuevamente.")
@@ -5895,28 +6099,14 @@ export default function DashboardPage() {
   }, [])
 
   // ADDED: Logo change handler
-  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
       const reader = new FileReader()
-      reader.onloadend = async () => {
+      reader.onloadend = () => {
         const logoUrl = reader.result as string
         setHospitalLogo(logoUrl)
-        
-        // Save logo to database instead of localStorage
-        const result = await saveHospitalLogo(logoUrl)
-        if (result.success) {
-          toast({
-            title: "Logo actualizado",
-            description: "El logo del hospital se ha guardado correctamente.",
-          })
-        } else {
-          toast({
-            title: "Error",
-            description: result.error || "No se pudo guardar el logo.",
-            variant: "destructive",
-          })
-        }
+        localStorage.setItem("hospitalLogo", logoUrl)
       }
       reader.readAsDataURL(file)
     }

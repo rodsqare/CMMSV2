@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Optimizaciones para producción
+  swcMinify: true,
+
   // Configuración de imágenes
   images: {
     unoptimized: true,

@@ -66,9 +66,8 @@ export async function POST(request: NextRequest) {
     
     const validation = createUsuarioSchema.safeParse(body)
     if (!validation.success) {
-      const firstError = validation.error.errors?.[0]?.message || 'Validación fallida'
       return NextResponse.json(
-        { error: firstError },
+        { error: validation.error.errors[0].message },
         { status: 400 }
       )
     }

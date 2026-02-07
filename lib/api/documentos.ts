@@ -6,17 +6,12 @@ export interface Documento {
   id: number
   nombre: string
   tipo?: string
-  tamanio_kb?: number
-  url_archivo?: string
-  subido_por?: number
-  subidoPor?: {
-    id: number
-    nombre: string
-    email: string
-  }
-  created_at: string
-  orden_id?: number | null
-  equipo_id: number
+  tamanoKb?: number
+  urlArchivo?: string
+  subidoPorId?: number
+  subidoPor?: string
+  fechaSubida: string
+  equipoId: number
 }
 
 export interface DocumentoResponse {

@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     if (tipo) where.tipo = tipo
     if (asignado_a) where.asignado_a = parseInt(asignado_a)
     
-    const ordenes = await prisma.orden_trabajo.findMany({
+    const ordenes = await prisma.ordenTrabajo.findMany({
       where,
       orderBy: { created_at: 'desc' },
       include: {
@@ -86,9 +86,8 @@ export async function POST(request: NextRequest) {
     
     const validation = createOrdenSchema.safeParse(body)
     if (!validation.success) {
-      const firstError = validation.error.errors?.[0]?.message || 'Validación fallida'
       return NextResponse.json(
-        { error: firstError },
+        { error: validation.error.errors[0].message },
         { status: 400 }
       )
     }
@@ -96,13 +95,13 @@ export async function POST(request: NextRequest) {
     const data = validation.data
     
     // Generar número de orden único
-    const ultimaOrden = await prisma.orden_trabajo.findFirst({
+    const ultimaOrden = await prisma.ordenTrabajo.findFirst({
       orderBy: { id: 'desc' },
     })
     
     const numeroOrden = `OT-${String((ultimaOrden?.id || 0) + 1).padStart(6, '0')}`
     
-    const orden = await prisma.orden_trabajo.create({
+    const orden = await prisma.ordenTrabajo.create({
       data: {
         numero_orden: numeroOrden,
         equipo_id: data.equipo_id,

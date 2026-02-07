@@ -7,7 +7,6 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  url      = env("DATABASE_URL")
 }
 
 model Usuario {
@@ -226,16 +225,4 @@ model Log {
   @@index([modulo])
   @@index([created_at])
   @@map("logs")
-}
-
-model Configuracion {
-  id              Int      @id @default(autoincrement())
-  clave           String   @unique @db.VarChar(100)
-  valor           String?  @db.Text
-  descripcion     String?  @db.VarChar(255)
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
-
-  @@index([clave])
-  @@map("configuracion")
 }

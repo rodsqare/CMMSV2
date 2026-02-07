@@ -61,15 +61,15 @@ function transformOrdenFromAPI(orden: any): OrdenTrabajo {
     prioridad: orden.prioridad,
     estado: orden.estado,
     descripcion: orden.descripcion,
-    tecnicoAsignadoId: orden.tecnicoAsignadoId || orden.asignado_a,
-    tecnicoAsignadoNombre: orden.tecnicoAsignadoNombre || orden.tecnico_nombre,
-    fechaCreacion: orden.fechaCreacion || orden.fecha_solicitud,
+    tecnicoAsignadoId: orden.tecnicoAsignadoId || orden.tecnico_asignado_id,
+    tecnicoAsignadoNombre: orden.tecnicoAsignadoNombre || orden.tecnico_asignado_nombre,
+    fechaCreacion: orden.fechaCreacion || orden.fecha_creacion,
     fechaInicio: orden.fechaInicio || orden.fecha_inicio,
     fechaFinalizacion: orden.fechaFinalizacion || orden.fecha_finalizacion,
-    horasTrabajadas: toNumber(orden.horasTrabajadas || orden.tiempo_real),
-    costoRepuestos: toNumber(orden.costoRepuestos || orden.costo_estimado),
-    costoTotal: toNumber(orden.costoTotal || orden.costo_real),
-    observaciones: orden.observaciones || orden.notas,
+    horasTrabajadas: toNumber(orden.horasTrabajadas || orden.horas_trabajadas),
+    costoRepuestos: toNumber(orden.costoRepuestos || orden.costo_repuestos),
+    costoTotal: toNumber(orden.costoTotal || orden.costo_total),
+    observaciones: orden.observaciones,
     createdAt: orden.createdAt || orden.created_at,
     updatedAt: orden.updatedAt || orden.updated_at,
   }
@@ -93,19 +93,21 @@ function transformOrdenToAPI(orden: Partial<OrdenTrabajo>): any {
 
   const normalized: any = {
     numero_orden: orden.numeroOrden,
+    id_equipo: orden.equipoId,
     equipo_id: orden.equipoId,
     tipo: tipo,
     prioridad: prioridad,
     estado: estado,
     descripcion: orden.descripcion,
-    asignado_a: orden.tecnicoAsignadoId,
-    fecha_solicitud: orden.fechaCreacion,
+    tecnico_asignado_id: orden.tecnicoAsignadoId,
+    fecha_creacion: orden.fechaCreacion,
     fecha_inicio: orden.fechaInicio,
     fecha_finalizacion: orden.fechaFinalizacion,
-    tiempo_real: orden.horasTrabajadas,
-    costo_estimado: orden.costoRepuestos,
-    costo_real: orden.costoTotal,
-    notas: orden.observaciones,
+    horas_trabajadas: orden.horasTrabajadas,
+    costo_repuestos: orden.costoRepuestos,
+    costo_total: orden.costoTotal,
+    observaciones: orden.observaciones,
+    notas: orden.observaciones, // Map observaciones to notas as well for compatibility
   }
 
   Object.keys(normalized).forEach((key) => {
@@ -140,7 +142,7 @@ export async function getOrdenesTrabajo(filters?: OrdenesTrabajoFilters): Promis
   if (filters?.perPage) params.append("perPage", filters.perPage.toString())
 
   const queryString = params.toString()
-  const url = `/ordenes${queryString ? `?${queryString}` : ""}`
+  const url = `/ordenes-trabajo${queryString ? `?${queryString}` : ""}`
 
   console.log("[v0] getOrdenesTrabajo - API URL:", url)
 
@@ -209,7 +211,7 @@ export async function getOrdenesTrabajo(filters?: OrdenesTrabajoFilters): Promis
 export async function getOrdenTrabajo(id: number): Promise<OrdenTrabajo> {
   const client = isServer ? serverApiClient : apiClient
 
-  const response = await client.get<any>(`/ordenes/${id}`)
+  const response = await client.get<any>(`/ordenes-trabajo/${id}`)
   return transformOrdenFromAPI(response)
 }
 
@@ -220,7 +222,7 @@ export async function createOrdenTrabajo(orden: Partial<OrdenTrabajo>): Promise<
   const transformedData = transformOrdenToAPI(orden)
   console.log("[v0] createOrdenTrabajo - Sending to API:", transformedData)
 
-  const response = await client.post<any>("/ordenes", transformedData)
+  const response = await client.post<any>("/ordenes-trabajo", transformedData)
   console.log("[v0] createOrdenTrabajo - API response:", response)
 
   return transformOrdenFromAPI(response)
@@ -229,7 +231,7 @@ export async function createOrdenTrabajo(orden: Partial<OrdenTrabajo>): Promise<
 export async function updateOrdenTrabajo(id: number, orden: Partial<OrdenTrabajo>): Promise<OrdenTrabajo> {
   const client = isServer ? serverApiClient : apiClient
 
-  const response = await client.put<any>(`/ordenes/${id}`, transformOrdenToAPI(orden))
+  const response = await client.put<any>(`/ordenes-trabajo/${id}`, transformOrdenToAPI(orden))
   return transformOrdenFromAPI(response)
 }
 
@@ -238,7 +240,7 @@ export async function deleteOrdenTrabajo(id: number): Promise<boolean> {
 
   console.log("[v0] deleteOrdenTrabajo - Attempting to delete orden with id:", id)
   try {
-    const response = await client.delete<any>(`/ordenes/${id}`)
+    const response = await client.delete<any>(`/ordenes-trabajo/${id}`)
     console.log("[v0] deleteOrdenTrabajo - Raw API response:", JSON.stringify(response, null, 2))
 
     const wasSuccessful = response?.success === true || response?.message !== undefined
@@ -262,7 +264,7 @@ export async function asignarTecnico(ordenId: number, tecnicoId: number): Promis
 
   console.log("[v0] asignarTecnico - ordenId:", ordenId, "tecnicoId:", tecnicoId)
 
-  const response = await client.post<any>(`/ordenes/${ordenId}/asignar-tecnico`, {
+  const response = await client.post<any>(`/ordenes-trabajo/${ordenId}/asignar-tecnico`, {
     tecnico_id: tecnicoId,
   })
 
@@ -281,7 +283,7 @@ export async function cambiarEstado(
 
   const estadoTransformado = nuevoEstado.toLowerCase().replace(/\s+/g, "_")
 
-  const response = await client.post<any>(`/ordenes/${ordenId}/cambiar-estado`, {
+  const response = await client.post<any>(`/ordenes-trabajo/${ordenId}/cambiar-estado`, {
     estado: estadoTransformado,
     observaciones,
   })
@@ -293,7 +295,9 @@ export async function cambiarEstado(
 export async function exportOrdenTrabajoPDF(id: number): Promise<Blob> {
   const client = isServer ? serverApiClient : apiClient
 
-  const response = await client.get<Blob>(`/ordenes/${id}/pdf`, {
+  console.log("[v0] exportOrdenTrabajoPDF - Exporting orden to PDF, id:", id)
+
+  const response = await client.get(`/ordenes-trabajo/${id}/export-pdf`, {
     responseType: "blob",
   })
 

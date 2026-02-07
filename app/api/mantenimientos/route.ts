@@ -48,11 +48,9 @@ export async function GET(request: NextRequest) {
             email: true,
           },
         },
-        realizaciones: {
+        _count: {
           select: {
-            id: true,
-            realizado_por: true,
-            fecha_realizacion: true,
+            realizaciones: true,
           },
         },
       },

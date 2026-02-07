@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
-import { getNotifications, type Notification } from "@/app/actions/notificaciones"
+import { getNotifications, type Notification } from "@/lib/api/notifications"
 
 export function NotificationsDropdown() {
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -24,11 +24,9 @@ export function NotificationsDropdown() {
         setLoading(true)
         const data = await getNotifications()
         console.log("[v0] Loaded notifications:", data)
-        // Ensure data is always an array
-        setNotifications(Array.isArray(data) ? data : [])
+        setNotifications(data)
       } catch (error) {
         console.error("[v0] Failed to load notifications:", error)
-        setNotifications([])
       } finally {
         setLoading(false)
       }

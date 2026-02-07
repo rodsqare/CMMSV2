@@ -12,7 +12,7 @@ export async function GET(
     await requireAuth()
     const { id } = await params
     
-    const orden = await prisma.orden_trabajo.findUnique({
+    const orden = await prisma.ordenTrabajo.findUnique({
       where: { id: parseInt(id) },
       include: {
         equipo: true,
@@ -35,7 +35,7 @@ export async function GET(
         documentos: {
           orderBy: { created_at: 'desc' },
           include: {
-            subidoPor: {
+            usuario: {
               select: {
                 id: true,
                 nombre: true,
@@ -89,16 +89,15 @@ export async function PUT(
     
     const validation = updateOrdenSchema.safeParse(body)
     if (!validation.success) {
-      const firstError = validation.error.errors?.[0]?.message || 'Validación fallida'
       return NextResponse.json(
-        { error: firstError },
+        { error: validation.error.errors[0].message },
         { status: 400 }
       )
     }
     
     const data = validation.data
     
-    const ordenExistente = await prisma.orden_trabajo.findUnique({
+    const ordenExistente = await prisma.ordenTrabajo.findUnique({
       where: { id: parseInt(id) },
       include: {
         tecnico: true,
@@ -112,7 +111,7 @@ export async function PUT(
       )
     }
     
-    const orden = await prisma.orden_trabajo.update({
+    const orden = await prisma.ordenTrabajo.update({
       where: { id: parseInt(id) },
       data: {
         ...data,
@@ -204,7 +203,7 @@ export async function DELETE(
     const session = await requireAuth()
     const { id } = await params
     
-    const orden = await prisma.orden_trabajo.findUnique({
+    const orden = await prisma.ordenTrabajo.findUnique({
       where: { id: parseInt(id) },
     })
     
@@ -215,7 +214,7 @@ export async function DELETE(
       )
     }
     
-    await prisma.orden_trabajo.delete({
+    await prisma.ordenTrabajo.delete({
       where: { id: parseInt(id) },
     })
     
