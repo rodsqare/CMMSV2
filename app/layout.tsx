@@ -1,6 +1,7 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
+import { Analytics } from "@vercel/analytics/next"
 import { Toaster } from "@/components/ui/toaster"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import "./globals.css"
@@ -27,6 +28,7 @@ export default function RootLayout({
       <body className="font-sans antialiased" suppressHydrationWarning>
         <SidebarProvider>{children}</SidebarProvider>
         <Toaster />
+        <Analytics />
       </body>
     </html>
   )

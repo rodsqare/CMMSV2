@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       where,
       orderBy: { created_at: 'desc' },
       include: {
-        usuario: {
+        subidoPor: {
           select: {
             id: true,
             nombre: true,

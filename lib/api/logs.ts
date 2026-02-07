@@ -1,11 +1,18 @@
 export type AuditLog = {
   id: number
-  timestamp: string
-  usuario: string
-  accion: "Crear" | "Actualizar" | "Eliminar" | "Ver" | "Descargar" | "Exportar"
-  descripcion: string
+  usuario_id?: number
+  usuario?: {
+    id: number
+    nombre: string
+    email: string
+  }
+  accion: string
   modulo: string
-  detalles?: string
+  descripcion: string
+  ip_address?: string
+  user_agent?: string
+  datos?: any
+  created_at: string
 }
 
 export function filterLogs(logs: AuditLog[], searchTerm: string, actionFilter: string): AuditLog[] {
@@ -40,11 +47,11 @@ export async function getAuditLogs(
 }> {
   const params = new URLSearchParams()
   if (search) params.append("search", search)
-  if (action && action !== "all") params.append("action", action)
-  params.append("per_page", perPage.toString())
+  if (action && action !== "all") params.append("accion", action)
+  params.append("limit", perPage.toString())
 
   const client = getClient()
-  const response = await client.get(`/logs-auditoria?${params.toString()}`)
+  const response = await client.get(`/logs?${params.toString()}`)
 
   const logsData = response.data?.data || response.data || []
   const currentPage = response.data?.current_page || response.current_page || 1
@@ -53,12 +60,15 @@ export async function getAuditLogs(
 
   const transformedData = logsData.map((log: any) => ({
     id: log.id,
-    timestamp: log.timestamp || log.fecha_hora || log.created_at,
+    usuario_id: log.usuario_id,
     usuario: log.usuario,
-    accion: log.accion as AuditLog["accion"],
-    descripcion: log.descripcion || log.detalle,
-    modulo: log.modulo || extractModuloFromDetalle(log.detalle || log.descripcion),
-    detalles: log.detalle || log.descripcion,
+    accion: log.accion,
+    modulo: log.modulo,
+    descripcion: log.descripcion,
+    ip_address: log.ip_address,
+    user_agent: log.user_agent,
+    datos: log.datos,
+    created_at: log.created_at,
   }))
 
   return {

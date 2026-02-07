@@ -4,30 +4,22 @@ import { serverApiClient } from "./server-client"
 const isServer = typeof window === "undefined"
 
 export type Usuario = {
-  id: number
+  id?: number
   nombre: string
-  correo: string
-  rol: "Técnico" | "Supervisor" | "Administrador"
-  especialidad?: string
-  estado: "Activo" | "Inactivo"
-  fecha_creacion: string
-  ultima_actualizacion?: string
-  permissions?: {
-    gestionEquipos?: boolean
-    gestionUsuarios?: boolean
-    ordenesTrabajoCrear?: boolean
-    ordenesTrabajoAsignar?: boolean
-    ordenesTrabajoEjecutar?: boolean
-    mantenimientoPreventivo?: boolean
-    reportesGenerar?: boolean
-    reportesVer?: boolean
-    logsAcceso?: boolean
-    configuracionSistema?: boolean
-  }
+  email: string
+  password?: string
+  rol: string
+  activo: boolean
+  estado?: string
+  ultimo_acceso?: string | null
+  intentos_fallidos?: number
+  bloqueado_hasta?: string | null
+  created_at?: string
+  updated_at?: string
 }
 
 export type UsuarioWithPassword = Partial<Usuario> & {
-  contrasena?: string
+  password?: string
 }
 
 export type UsuariosResponse = {
@@ -124,26 +116,13 @@ export async function createUsuario(usuario: UsuarioWithPassword): Promise<Usuar
 export async function updateUsuario(id: number, usuario: UsuarioWithPassword): Promise<Usuario> {
   const client = isServer ? serverApiClient : apiClient
   
-  // Build data object with only defined fields to avoid overwriting with undefined
-  const dataToSend: Record<string, any> = {}
-  
-  if (usuario.nombre !== undefined) dataToSend.nombre = usuario.nombre
-  if (usuario.correo !== undefined) dataToSend.correo = usuario.correo
-  if (usuario.rol !== undefined) dataToSend.rol = usuario.rol
-  if (usuario.especialidad !== undefined) dataToSend.especialidad = usuario.especialidad
-  if (usuario.estado !== undefined) {
-    dataToSend.estado = usuario.estado.toLowerCase ? usuario.estado.toLowerCase() : usuario.estado
+  const dataToSend = {
+    ...usuario,
+    estado: usuario.estado ? usuario.estado.toLowerCase() : undefined,
   }
-  if (usuario.permissions !== undefined) dataToSend.permissions = usuario.permissions
-  if (usuario.contrasena !== undefined) dataToSend.contrasena = usuario.contrasena
-
-  console.log("[v0] updateUsuario - Sending to API:", { id, dataToSend })
 
   const response = await client.put<any>(`/usuarios/${id}`, dataToSend)
-  const result = response.data || response
-  
-  console.log("[v0] updateUsuario - Response:", result)
-  return result
+  return response.data || response
 }
 
 export async function deleteUsuario(id: number): Promise<void> {

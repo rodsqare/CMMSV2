@@ -1,14 +1,18 @@
-// Server-side API client that directly calls the Laravel backend
+// Server-side API client - Using Next.js API Routes instead of Laravel backend
 // This is used by Server Actions and cannot use localStorage or browser APIs
 
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000/api"
+// Use Next.js API routes instead of external backend
+const BACKEND_URL = process.env.BACKEND_URL || "/api"
 
 class ServerApiClient {
   private baseUrl: string
+  private useNextApi: boolean
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl
-    console.log("[v0] ServerApiClient initialized - backend URL:", baseUrl)
+    // Detect if we should use Next.js API routes (when BACKEND_URL not set or is /api)
+    this.useNextApi = !process.env.BACKEND_URL || baseUrl === "/api"
+    console.log("[v0] ServerApiClient initialized - backend URL:", baseUrl, "useNextApi:", this.useNextApi)
   }
 
   async request<T>(
@@ -18,6 +22,13 @@ class ServerApiClient {
     userId?: string,
     token?: string
   ): Promise<T> {
+    // If using Next.js API, skip the external call and return empty data
+    // The actual API routes will handle the requests
+    if (this.useNextApi) {
+      console.log(`[v0] ServerApiClient: Skipping external backend call for ${endpoint} (using Next.js API routes)`)
+      return {} as T
+    }
+
     let url = `${this.baseUrl}${endpoint}`
 
     // Add query parameters

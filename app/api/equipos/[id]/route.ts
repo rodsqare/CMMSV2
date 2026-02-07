@@ -82,8 +82,9 @@ export async function PUT(
     
     const validation = updateEquipoSchema.safeParse(body)
     if (!validation.success) {
+      const firstError = validation.error.errors?.[0]?.message || 'Validación fallida'
       return NextResponse.json(
-        { error: validation.error.errors[0].message },
+        { error: firstError },
         { status: 400 }
       )
     }

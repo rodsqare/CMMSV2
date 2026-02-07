@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     
     if (!passwordValido) {
       // Incrementar intentos fallidos
-      const intentos = usuario.intentos_fallidos + 1
+      const intentos = (usuario.intentos_fallidos || 0) + 1
       const updates: any = { intentos_fallidos: intentos }
       
       // Bloquear si supera 5 intentos

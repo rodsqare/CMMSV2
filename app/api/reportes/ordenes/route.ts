@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const fechaFin = endOfMonth(new Date())
     
     // Órdenes por estado
-    const ordenesPorEstado = await prisma.ordenTrabajo.groupBy({
+    const ordenesPorEstado = await prisma.orden_trabajo.groupBy({
       by: ['estado'],
       _count: true,
       where: {
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     })
     
     // Órdenes por prioridad
-    const ordenesPorPrioridad = await prisma.ordenTrabajo.groupBy({
+    const ordenesPorPrioridad = await prisma.orden_trabajo.groupBy({
       by: ['prioridad'],
       _count: true,
       where: {
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     })
     
     // Órdenes por tipo
-    const ordenesPorTipo = await prisma.ordenTrabajo.groupBy({
+    const ordenesPorTipo = await prisma.orden_trabajo.groupBy({
       by: ['tipo'],
       _count: true,
       where: {
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     })
     
     // Tiempo promedio de resolución
-    const ordenesFinalizadas = await prisma.ordenTrabajo.findMany({
+    const ordenesFinalizadas = await prisma.orden_trabajo.findMany({
       where: {
         estado: 'finalizada',
         fecha_inicio: { not: null },
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
       : 0
     
     // Órdenes pendientes por técnico
-    const ordenesPorTecnico = await prisma.ordenTrabajo.groupBy({
+    const ordenesPorTecnico = await prisma.orden_trabajo.groupBy({
       by: ['asignado_a'],
       _count: true,
       where: {

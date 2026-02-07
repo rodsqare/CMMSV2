@@ -2,11 +2,13 @@ import { apiClient } from "./client"
 
 export interface Notification {
   id: number
-  tipo: "info" | "success" | "warning" | "error"
+  usuario_id: number
   titulo: string
-  mensaje: string
-  fecha: string
+  descripcion?: string
+  tipo?: string
   leida: boolean
+  created_at: string
+  updated_at?: string
 }
 
 export const getNotifications = async (): Promise<Notification[]> => {

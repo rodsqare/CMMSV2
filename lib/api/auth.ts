@@ -1,8 +1,8 @@
 import { apiClient } from "./client"
 
 export type LoginCredentials = {
-  correo: string
-  contrasena: string
+  email: string
+  password: string
 }
 
 export type LoginResponse = {
@@ -11,25 +11,22 @@ export type LoginResponse = {
   user?: {
     id: number
     nombre: string
-    correo: string
+    email: string
     rol: string
-    especialidad?: string
-    estado: string
-    permisos?: any
+    activo?: boolean
   }
   message?: string
 }
 
 export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
   console.log("[v0] ========== LOGIN REQUEST ==========")
-  console.log("[v0] Correo:", credentials.correo)
-  console.log("[v0] Contraseña length:", credentials.contrasena.length)
-  console.log("[v0] Contraseña first 3 chars:", credentials.contrasena.substring(0, 3) + "...")
+  console.log("[v0] Email:", credentials.email)
+  console.log("[v0] Password length:", credentials.password.length)
 
   try {
-    const response = await apiClient.post<any>("/login", {
-      correo: credentials.correo,
-      contrasena: credentials.contrasena,
+    const response = await apiClient.post<any>("/auth/login", {
+      email: credentials.email,
+      password: credentials.password,
     })
 
     console.log("[v0] ========== LOGIN RESPONSE ==========")
