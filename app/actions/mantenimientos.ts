@@ -139,7 +139,7 @@ function frecuenciaToDias(frecuencia: string): number {
 }
 
 export async function createMantenimiento(mantenimiento: any, usuarioId?: number) {
-  console.log("[v0] Action: Creating maintenance", mantenimiento)
+  console.log("[v0] Action: Creating maintenance with payload:", JSON.stringify(mantenimiento, null, 2))
 
   try {
     // Get current user if not provided
@@ -149,7 +149,16 @@ export async function createMantenimiento(mantenimiento: any, usuarioId?: number
       creadorId = 1
     }
 
-    const frecuenciaDias = frecuenciaToDias(mantenimiento.frecuencia)
+    const equipoId = mantenimiento.equipoId || mantenimiento.equipo_id
+    console.log("[v0] Creating maintenance - equipoId:", equipoId, "from:", { 
+      mantenimiento_equipoId: mantenimiento.equipoId, 
+      mantenimiento_equipo_id: mantenimiento.equipo_id 
+    })
+
+    if (!equipoId) {
+      console.error("[v0] No equipment ID provided!")
+      return { success: false, error: "No se proporcionó ID del equipo" }
+    }
     const descripcion = mantenimiento.descripcion || mantenimiento.observaciones || "Sin descripción"
 
     try {
@@ -169,26 +178,26 @@ export async function createMantenimiento(mantenimiento: any, usuarioId?: number
       })
       console.log("[v0] Action: Maintenance created successfully", result)
       return { success: true, data: result }
-    } catch (dbError) {
-      console.log("[v0] Database error, using fallback storage for createMantenimiento")
-      // Fallback: create in memory
-      const newMaintenance = {
-        id: nextMantenimientoId++,
-        equipo_id: mantenimiento.equipoId || mantenimiento.equipo_id,
-        tipo: mantenimiento.tipo?.toLowerCase(),
-        descripcion: descripcion,
-        procedimiento: mantenimiento.procedimiento || null,
-        frecuencia: mantenimiento.frecuencia?.toLowerCase(),
-        ultima_realizacion: mantenimiento.ultimaFecha || null,
-        proxima_programada: mantenimiento.proximaFecha || mantenimiento.proxima_programada,
-        activo: mantenimiento.activo ?? true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+      } catch (dbError) {
+        console.log("[v0] Database error, using fallback storage for createMantenimiento")
+        // Fallback: create in memory
+        const newMaintenance = {
+          id: nextMantenimientoId++,
+          equipo_id: equipoId,
+          tipo: mantenimiento.tipo?.toLowerCase(),
+          descripcion: descripcion,
+          procedimiento: mantenimiento.procedimiento || null,
+          frecuencia: mantenimiento.frecuencia?.toLowerCase(),
+          ultima_realizacion: mantenimiento.ultimaFecha || null,
+          proxima_programada: mantenimiento.proximaFecha || mantenimiento.proxima_programada,
+          activo: mantenimiento.activo ?? true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+        localMantenimientosStorage.push(newMaintenance)
+        console.log("[v0] Action: Maintenance created in fallback storage", newMaintenance)
+        return { success: true, data: newMaintenance }
       }
-      localMantenimientosStorage.push(newMaintenance)
-      console.log("[v0] Action: Maintenance created in fallback storage", newMaintenance)
-      return { success: true, data: newMaintenance }
-    }
   } catch (error: any) {
     console.error("[v0] Action: Error creating maintenance", error)
     const errorMessage = error.message || "Error al crear el mantenimiento"
@@ -201,33 +210,22 @@ export async function updateMantenimiento(id: number, mantenimiento: any) {
 
   try {
     const frecuenciaDias = frecuenciaToDias(mantenimiento.frecuencia)
-    const descripcion = mantenimiento.descripcion || mantenimiento.observaciones
-
-    const updateData: any = {
-      tipo: mantenimiento.tipo?.toLowerCase(),
-      descripcion: descripcion,
-      procedimiento: mantenimiento.procedimiento,
-      frecuencia: mantenimiento.frecuencia?.toLowerCase(),
-      frecuencia_dias: frecuenciaDias,
-      updated_at: new Date(),
-    }
-
-    if (mantenimiento.ultimaFecha) {
-      updateData.ultima_realizacion = new Date(mantenimiento.ultimaFecha)
-    }
-    
-    if (mantenimiento.proximaFecha || mantenimiento.proxima_programada) {
-      updateData.proxima_programada = new Date(mantenimiento.proximaFecha || mantenimiento.proxima_programada)
-    }
-    
-    if (mantenimiento.activo !== undefined) {
-      updateData.activo = mantenimiento.activo
-    }
+    const descripcion = mantenimiento.descripcion || mantenimiento.observaciones || "Sin descripción"
 
     try {
-      const result = await prisma.mantenimiento.update({
-        where: { id },
-        data: updateData
+      const result = await prisma.mantenimiento.create({
+        data: {
+          equipo_id: equipoId,
+          tipo: mantenimiento.tipo?.toLowerCase(),
+          descripcion: descripcion,
+          procedimiento: mantenimiento.procedimiento,
+          frecuencia: mantenimiento.frecuencia?.toLowerCase(),
+          frecuencia_dias: frecuenciaDias,
+          ultima_realizacion: mantenimiento.ultimaFecha ? new Date(mantenimiento.ultimaFecha) : null,
+          proxima_programada: new Date(mantenimiento.proximaFecha || mantenimiento.proxima_programada),
+          activo: mantenimiento.activo ?? true,
+          creado_por: creadorId,
+        }
       })
       console.log("[v0] Action: Maintenance updated successfully", result)
       return { success: true, data: result }
