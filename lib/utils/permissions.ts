@@ -54,9 +54,8 @@ export const DEFAULT_PERMISSIONS_BY_ROLE: Record<RoleType, Record<PermissionKey,
 export interface CurrentUser {
   id: number
   nombre: string
-  correo: string
+  email: string
   rol: RoleType
-  especialidad?: string
   permissions?: Record<PermissionKey, boolean>
 }
 

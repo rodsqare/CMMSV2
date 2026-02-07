@@ -141,11 +141,10 @@ const mockUsers: Usuario[] = [
   {
     id: 1,
     nombre: "Admin User",
-    correo: "admin@hospital.com",
+    email: "admin@hospital.com",
     rol: "Administrador",
-    especialidad: "Biomedicina",
+    activo: true,
     estado: "Activo",
-    fecha_creacion: "2024-01-15",
     permissions: {
       gestionEquipos: true,
       gestionUsuarios: true,
@@ -162,11 +161,10 @@ const mockUsers: Usuario[] = [
   {
     id: 2,
     nombre: "Supervisor User",
-    correo: "supervisor@hospital.com",
+    email: "supervisor@hospital.com",
     rol: "Supervisor",
-    especialidad: "Ingeniería",
+    activo: true,
     estado: "Activo",
-    fecha_creacion: "2024-02-20",
     permissions: {
       gestionEquipos: true,
       gestionUsuarios: false,
@@ -183,11 +181,10 @@ const mockUsers: Usuario[] = [
   {
     id: 3,
     nombre: "Technician User",
-    correo: "technician@hospital.com",
+    email: "technician@hospital.com",
     rol: "Técnico",
-    especialidad: "Mecánica",
+    activo: true,
     estado: "Activo",
-    fecha_creacion: "2024-03-10",
     permissions: {
       gestionEquipos: false,
       gestionUsuarios: false,
@@ -677,9 +674,8 @@ export default function DashboardPage() {
         const currentUserWithPermissions: CurrentUser = {
           id: userData.id,
           nombre: userData.nombre,
-          correo: userEmail,
+          email: userEmail,
           rol: roletype,
-          especialidad: userData.especialidad,
           permissions,
         }
         setCurrentUser(currentUserWithPermissions)
@@ -696,9 +692,8 @@ export default function DashboardPage() {
         const currentUserWithPermissions: CurrentUser = {
           id: userId,
           nombre: storedName,
-          correo: userEmail,
+          email: userEmail,
           rol: storedRole,
-          especialidad: "",
           permissions: DEFAULT_PERMISSIONS_BY_ROLE[storedRole],
         }
         setCurrentUser(currentUserWithPermissions)
@@ -1024,7 +1019,6 @@ export default function DashboardPage() {
         correo: editingUser.correo || editingUser.email || "",
         email: editingUser.email || editingUser.correo || "",
         rol: editingUser.rol,
-        especialidad: editingUser.especialidad || "",
         estado: editingUser.estado || (editingUser.activo ? "Activo" : "Inactivo"),
         activo: editingUser.activo !== undefined ? editingUser.activo : true,
         // Don't set contrasena for editing users - password field is hidden
@@ -1703,7 +1697,7 @@ export default function DashboardPage() {
                         })
                         .map((tech) => (
                           <SelectItem key={tech.id} value={tech.id.toString()}>
-                            {tech.nombre} {tech.especialidad ? `- ${tech.especialidad}` : ""} ({tech.rol})
+                            {tech.nombre} ({tech.rol})
                           </SelectItem>
                         ))}
                     </SelectContent>
@@ -1913,7 +1907,7 @@ export default function DashboardPage() {
                     })
                     .map((tech) => (
                       <SelectItem key={tech.id} value={tech.id.toString()}>
-                        {tech.nombre} {tech.especialidad ? `- ${tech.especialidad}` : ""} ({tech.rol})
+                        {tech.nombre} ({tech.rol})
                       </SelectItem>
                     ))}
                   {users.filter((u) => {
@@ -3580,7 +3574,6 @@ export default function DashboardPage() {
                       <th className="text-left p-3 font-medium text-gray-700">Nombre</th>
                       <th className="text-left p-3 font-medium text-gray-700">Correo</th>
                       <th className="text-left p-3 font-medium text-gray-700">Rol</th>
-                      <th className="text-left p-3 font-medium text-gray-700">Especialidad</th>
                       <th className="text-left p-3 font-medium text-gray-700">Estado</th>
                       <th className="text-left p-3 font-medium text-gray-700">Fecha Creación</th>
                       <th className="text-left p-3 font-medium text-gray-700">Acciones</th>
@@ -3605,7 +3598,6 @@ export default function DashboardPage() {
                             {user.rol}
                           </Badge>
                         </td>
-                        <td className="p-3 text-sm">{user.especialidad || "N/A"}</td>
                         <td className="p-3 text-sm">
                           <Badge
                             className={`rounded-md px-2 py-1 ${
@@ -3833,15 +3825,15 @@ export default function DashboardPage() {
                 <Input
                   id="correo"
                   type="email"
-                  value={newUser.correo || ""}
+                  value={newUser.email || ""}
                   onChange={(e) => {
-                    setNewUser({ ...newUser, correo: e.target.value })
-                    setUserFormErrors({ ...userFormErrors, correo: "" })
+                    setNewUser({ ...newUser, email: e.target.value })
+                    setUserFormErrors({ ...userFormErrors, email: "" })
                   }}
                   placeholder="correo@hospital.com"
                   required
                 />
-                {userFormErrors.correo && <p className="text-red-500 text-xs">{userFormErrors.correo}</p>}
+                {userFormErrors.email && <p className="text-red-500 text-xs">{userFormErrors.email}</p>}
               </div>
               {!editingUser && (
                 <div className="md:col-span-2">
@@ -3894,15 +3886,6 @@ export default function DashboardPage() {
                 {userFormErrors.rol && <p className="text-red-500 text-xs">{userFormErrors.rol}</p>}
               </div>
               <div>
-                <Label htmlFor="especialidad">Especialidad</Label>
-                <Input
-                  id="especialidad"
-                  value={newUser.especialidad || ""}
-                  onChange={(e) => setNewUser({ ...newUser, especialidad: e.target.value })}
-                  placeholder="Biomédico, Eléctrico, etc."
-                />
-              </div>
-              <div>
                 <Label htmlFor="estado">Estado</Label>
                 <Select
                   value={newUser.estado || "Activo"}
@@ -3935,7 +3918,7 @@ export default function DashboardPage() {
               <Button
                 onClick={async () => {
                   // Validate required fields
-                  if (!newUser.nombre || !newUser.correo || !newUser.rol) {
+                  if (!newUser.nombre || !newUser.email || !newUser.rol) {
                     setUserFormErrors({ ...userFormErrors, general: "Por favor complete los campos requeridos." })
                     return
                   }
@@ -4024,10 +4007,6 @@ export default function DashboardPage() {
                   >
                     {selectedUser?.rol || "N/A"}
                   </span>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-600">Especialidad</Label>
-                  <p className="text-sm">{selectedUser?.especialidad || "N/A"}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-600">Estado</Label>
@@ -5012,7 +4991,7 @@ export default function DashboardPage() {
                     })
                     .map((tech) => (
                       <SelectItem key={tech.id} value={tech.id.toString()}>
-                        {tech.nombre} {tech.especialidad ? `- ${tech.especialidad}` : ""} ({tech.rol})
+                        {tech.nombre} ({tech.rol})
                       </SelectItem>
                     ))}
                 </SelectContent>
@@ -5920,9 +5899,8 @@ export default function DashboardPage() {
     const currentUserWithPermissions: CurrentUser = {
       id: user.id,
       nombre: user.nombre,
-      correo: user.correo,
+      email: user.email,
       rol: roletype,
-      especialidad: user.especialidad,
       permissions: (user.permissions as Record<PermissionKey, boolean> | undefined) || DEFAULT_PERMISSIONS_BY_ROLE[roletype],
     }
     setCurrentUser(currentUserWithPermissions)
