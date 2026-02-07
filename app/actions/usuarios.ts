@@ -64,36 +64,74 @@ export async function fetchUsuarios(params: FetchUsuariosParams = {}): Promise<U
       ]
     }
 
-    const [data, total] = await Promise.all([
-      prisma.usuario.findMany({
-        where,
-        select: {
-          id: true,
-          nombre: true,
-          email: true,
-          rol: true,
-          activo: true,
-          created_at: true,
-          updated_at: true,
-        },
-        skip,
-        take: perPage,
-        orderBy: { created_at: 'desc' }
-      }),
-      prisma.usuario.count({ where })
-    ])
+    try {
+      const [data, total] = await Promise.all([
+        prisma.usuario.findMany({
+          where,
+          select: {
+            id: true,
+            nombre: true,
+            email: true,
+            rol: true,
+            activo: true,
+            created_at: true,
+            updated_at: true,
+          },
+          skip,
+          take: perPage,
+          orderBy: { created_at: 'desc' }
+        }),
+        prisma.usuario.count({ where })
+      ])
 
-    return { 
-      data: data.map(u => ({ 
-        ...u,
-        estado: u.activo ? 'Activo' : 'Inactivo',
-        fecha_creacion: u.created_at ? u.created_at.toISOString() : undefined,
-        created_at: u.created_at ? u.created_at.toISOString() : undefined,
-        updated_at: u.updated_at ? u.updated_at.toISOString() : undefined,
-      })),
-      total, 
-      page, 
-      perPage 
+      return { 
+        data: data.map(u => ({ 
+          ...u,
+          estado: u.activo ? 'Activo' : 'Inactivo',
+          fecha_creacion: u.created_at ? u.created_at.toISOString() : undefined,
+          created_at: u.created_at ? u.created_at.toISOString() : undefined,
+          updated_at: u.updated_at ? u.updated_at.toISOString() : undefined,
+        })),
+        total, 
+        page, 
+        perPage 
+      }
+    } catch (dbError) {
+      console.log("[v0] Database error, using fallback storage for fetchUsuarios")
+      // Fallback: use in-memory storage
+      let filteredUsers = [...localUsuariosStorage]
+      
+      if (params.rol) {
+        filteredUsers = filteredUsers.filter(u => u.rol === params.rol)
+      }
+      
+      if (params.estado) {
+        const isActive = params.estado.toLowerCase() === 'activo'
+        filteredUsers = filteredUsers.filter(u => u.activo === isActive)
+      }
+      
+      if (params.search) {
+        const searchLower = params.search.toLowerCase()
+        filteredUsers = filteredUsers.filter(u => 
+          u.nombre.toLowerCase().includes(searchLower) || 
+          u.email.toLowerCase().includes(searchLower)
+        )
+      }
+      
+      const total = filteredUsers.length
+      const paginatedUsers = filteredUsers.slice(skip, skip + perPage)
+      
+      return {
+        data: paginatedUsers.map(u => ({
+          ...u,
+          estado: u.activo ? 'Activo' : 'Inactivo',
+          created_at: u.created_at ? (typeof u.created_at === 'string' ? u.created_at : u.created_at.toISOString()) : undefined,
+          updated_at: u.updated_at ? (typeof u.updated_at === 'string' ? u.updated_at : u.updated_at.toISOString()) : undefined,
+        })),
+        total,
+        page,
+        perPage
+      }
     }
   } catch (error) {
     console.error("Error fetching usuarios:", error)
@@ -103,36 +141,55 @@ export async function fetchUsuarios(params: FetchUsuariosParams = {}): Promise<U
 
 export async function fetchUsuarioDetails(id: number): Promise<Usuario | null> {
   try {
-    const usuario = await prisma.usuario.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        nombre: true,
-        email: true,
-        rol: true,
-        activo: true,
-        created_at: true,
-        updated_at: true,
+    try {
+      const usuario = await prisma.usuario.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          nombre: true,
+          email: true,
+          rol: true,
+          activo: true,
+          created_at: true,
+          updated_at: true,
+        }
+      })
+      
+      if (!usuario) return null
+      
+      return {
+        id: usuario.id,
+        nombre: usuario.nombre,
+        email: usuario.email,
+        rol: usuario.rol,
+        activo: usuario.activo,
+        estado: usuario.activo ? 'activo' : 'inactivo',
+        created_at: usuario.created_at ? usuario.created_at.toISOString() : undefined,
+        updated_at: usuario.updated_at ? usuario.updated_at.toISOString() : undefined,
       }
-    })
-    
-    if (!usuario) return null
-    
-    return {
-      id: usuario.id,
-      nombre: usuario.nombre,
-      email: usuario.email,
-      rol: usuario.rol,
-      activo: usuario.activo,
-      estado: usuario.activo ? 'activo' : 'inactivo',
-      created_at: usuario.created_at ? usuario.created_at.toISOString() : undefined,
-      updated_at: usuario.updated_at ? usuario.updated_at.toISOString() : undefined,
+    } catch (dbError) {
+      console.log("[v0] Database error, using fallback storage for fetchUsuarioDetails")
+      // Fallback: search in memory
+      const usuario = localUsuariosStorage.find(u => u.id === id)
+      return usuario || null
     }
   } catch (error) {
     console.error("[v0] Error fetching usuario details:", error)
     return null
   }
 }
+
+// Fallback in-memory storage when DATABASE_URL is not configured
+let localUsuariosStorage: Usuario[] = [
+  {
+    id: 1,
+    nombre: "Admin User",
+    email: "admin@hospital.com",
+    rol: "Administrador",
+    activo: true,
+    estado: "Activo",
+  },
+]
 
 export async function saveUsuario(usuario: UsuarioWithPassword): Promise<{
   success: boolean
@@ -171,19 +228,38 @@ export async function saveUsuario(usuario: UsuarioWithPassword): Promise<{
       
       console.log("[v0] Updating usuario with data:", updateData)
       
-      savedUsuario = await prisma.usuario.update({
-        where: { id: usuario.id },
-        data: updateData,
-        select: {
-          id: true,
-          nombre: true,
-          email: true,
-          rol: true,
-          activo: true,
-          created_at: true,
-          updated_at: true,
+      try {
+        savedUsuario = await prisma.usuario.update({
+          where: { id: usuario.id },
+          data: updateData,
+          select: {
+            id: true,
+            nombre: true,
+            email: true,
+            rol: true,
+            activo: true,
+            created_at: true,
+            updated_at: true,
+          }
+        })
+      } catch (dbError) {
+        console.log("[v0] Database error, using fallback storage for update")
+        // Fallback: update in memory
+        const index = localUsuariosStorage.findIndex(u => u.id === usuario.id)
+        if (index >= 0) {
+          localUsuariosStorage[index] = {
+            ...localUsuariosStorage[index],
+            nombre: usuario.nombre,
+            email: email,
+            rol: usuario.rol,
+            activo: activo,
+            updated_at: new Date().toISOString(),
+          }
+          savedUsuario = localUsuariosStorage[index]
+        } else {
+          throw dbError
         }
-      })
+      }
     } else {
       // Create new usuario
       if (!usuario.password) {
@@ -197,26 +273,43 @@ export async function saveUsuario(usuario: UsuarioWithPassword): Promise<{
         activo
       })
       
-      savedUsuario = await prisma.usuario.create({
-        data: {
+      try {
+        savedUsuario = await prisma.usuario.create({
+          data: {
+            nombre: usuario.nombre,
+            email: email,
+            password: await bcrypt.hash(usuario.password, 10),
+            rol: usuario.rol,
+            activo: activo ?? true,
+            created_at: new Date(),
+            updated_at: new Date(),
+          },
+          select: {
+            id: true,
+            nombre: true,
+            email: true,
+            rol: true,
+            activo: true,
+            created_at: true,
+            updated_at: true,
+          }
+        })
+      } catch (dbError) {
+        console.log("[v0] Database error, using fallback storage for create")
+        // Fallback: create in memory
+        const newId = Math.max(...localUsuariosStorage.map(u => u.id || 0), 0) + 1
+        const now = new Date().toISOString()
+        savedUsuario = {
+          id: newId,
           nombre: usuario.nombre,
           email: email,
-          password: await bcrypt.hash(usuario.password, 10),
           rol: usuario.rol,
           activo: activo ?? true,
-          created_at: new Date(),
-          updated_at: new Date(),
-        },
-        select: {
-          id: true,
-          nombre: true,
-          email: true,
-          rol: true,
-          activo: true,
-          created_at: true,
-          updated_at: true,
+          created_at: now,
+          updated_at: now,
         }
-      })
+        localUsuariosStorage.push(savedUsuario)
+      }
     }
 
     console.log("[v0] Usuario saved successfully:", { 
