@@ -6,7 +6,7 @@ import React from "react"
 
 import { useState, useEffect, useCallback, useMemo } from "react" // Added useMemo
 import { getDashboardStats, type DashboardStats } from "@/app/actions/dashboard"
-import { fetchEquipos, saveEquipo, removeEquipo, fetchEquipoDetails, type Equipo } from "@/app/actions/equipos"
+import { fetchEquipos, saveEquipo, removeEquipo, fetchEquipoDetails, getEquipo, checkEquipoAssociations, type Equipo } from "@/app/actions/equipos"
 import {
   fetchUsuarios,
   saveUsuario,
@@ -278,33 +278,28 @@ function transformEquipoToEquipment(equipo: Equipo | any): Equipment {
 function transformEquipmentToEquipo(equipment: Partial<Equipment>): Partial<Equipo> {
   return {
     id: equipment.id,
-    numero_serie: equipment.numeroSerie,
-    nombre_equipo: equipment.nombre,
+    codigo: equipment.codigoInstitucional || `EQ-${Date.now()}`,
+    nombre: equipment.nombre,
+    tipo: "Médico", // Default type - can be adjusted based on form input
+    marca: equipment.fabricante,
     modelo: equipment.modelo,
-    fabricante: equipment.fabricante,
+    numero_serie: equipment.numeroSerie,
     ubicacion: equipment.ubicacion,
-    estado: equipment.estado as "operativo" | "mantenimiento" | "en reparacion" | "fuera de servicio" | "nuevo",
-    voltaje: equipment.voltaje,
-    fecha_instalacion: equipment.fechaInstalacion,
-    frecuencia: equipment.frecuencia,
-    fecha_adquisicion: equipment.fechaRetiro,
-    codigo_institucional: equipment.codigoInstitucional,
-    servicio: equipment.servicio,
-    vencimiento_garantia: equipment.vencimientoGarantia,
-    fecha_ingreso: equipment.fechaIngreso,
-    procedencia: equipment.procedencia,
-    potencia: equipment.potencia,
-    corriente: equipment.corriente,
-    otros_especificaciones: equipment.otrosEspecificaciones,
-    accesorios_consumibles: equipment.accesoriosConsumibles,
-    estado_equipo: equipment.estadoEquipo as "nuevo" | "operativo" | "no_operable",
-    manual_usuario: equipment.manualUsuario,
-    manual_servicio: equipment.manualServicio,
-    nivel_riesgo: equipment.nivelRiesgo as "alto" | "medio" | "bajo",
-    proveedor_nombre: equipment.proveedorNombre,
-    proveedor_direccion: equipment.proveedorDireccion,
-    proveedor_telefono: equipment.proveedorTelefono,
-    observaciones: equipment.observaciones,
+    estado: equipment.estado || "operativo",
+    criticidad: "media", // Default criticality - can be adjusted based on form input
+    descripcion: equipment.observaciones,
+    especificaciones: {
+      voltaje: equipment.voltaje,
+      frecuencia: equipment.frecuencia,
+      potencia: equipment.potencia,
+      corriente: equipment.corriente,
+    },
+    fecha_adquisicion: equipment.fechaIngreso || equipment.fechaRetiro,
+    valor_adquisicion: null,
+    vida_util_anos: null,
+    ultima_mantencion: null,
+    proxima_mantencion: null,
+    horas_operacion: null,
   }
 }
 

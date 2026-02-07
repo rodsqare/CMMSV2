@@ -345,19 +345,37 @@ export async function toggleUserStatus(
 
 export async function getUserActivity(usuarioId: number, token: string): Promise<UserActivity> {
   try {
-    const [ordenesCreadas, ordenesAsignadas, mantenimientosRealizados] = await Promise.all([
+    const [usuario, ordenesCreadas, ordenesAsignadas, recentLogs] = await Promise.all([
+      prisma.usuario.findUnique({ where: { id: usuarioId }, select: { ultimo_acceso: true } }),
       prisma.orden_trabajo.count({ where: { creado_por: usuarioId } }),
       prisma.orden_trabajo.count({ where: { asignado_a: usuarioId } }),
-      prisma.mantenimiento_realizado.count({ where: { realizado_por: usuarioId } }),
+      prisma.log.findMany({
+        where: { usuario_id: usuarioId },
+        select: { id: true, accion: true, modulo: true, descripcion: true, created_at: true },
+        orderBy: { created_at: 'desc' },
+        take: 5,
+      }),
     ])
     
     return { 
-      equipos: 0,
-      mantenimientos: mantenimientosRealizados,
-      ordenes: ordenesCreadas + ordenesAsignadas 
+      ultimo_acceso: usuario?.ultimo_acceso?.toISOString() || null,
+      ordenes_creadas: ordenesCreadas,
+      ordenes_asignadas: ordenesAsignadas,
+      actividades_recientes: recentLogs.map(log => ({
+        id: log.id,
+        timestamp: log.created_at.toISOString(),
+        accion: log.accion,
+        descripcion: log.descripcion,
+        modulo: log.modulo,
+      }))
     }
   } catch (error) {
     console.error("[v0] Error fetching user activity:", error)
-    return { equipos: 0, mantenimientos: 0, ordenes: 0 }
+    return { 
+      ultimo_acceso: null,
+      ordenes_creadas: 0,
+      ordenes_asignadas: 0,
+      actividades_recientes: []
+    }
   }
 }
