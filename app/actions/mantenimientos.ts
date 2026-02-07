@@ -85,22 +85,47 @@ export async function getMantenimientoById(id: number) {
   }
 }
 
-export async function createMantenimiento(mantenimiento: any) {
+// Helper function to convert frecuencia text to days
+function frecuenciaToDias(frecuencia: string): number {
+  const frecuenciaMap: Record<string, number> = {
+    'diaria': 1,
+    'semanal': 7,
+    'quincenal': 15,
+    'mensual': 30,
+    'bimensual': 60,
+    'trimestral': 90,
+    'semestral': 180,
+    'anual': 365,
+  }
+  return frecuenciaMap[frecuencia?.toLowerCase()] || 30
+}
+
+export async function createMantenimiento(mantenimiento: any, usuarioId?: number) {
   console.log("[v0] Action: Creating maintenance", mantenimiento)
 
   try {
+    // Get current user if not provided
+    let creadorId = usuarioId
+    if (!creadorId) {
+      // Try to get from session or use a default - this might need to be passed from the component
+      creadorId = 1
+    }
+
+    const frecuenciaDias = frecuenciaToDias(mantenimiento.frecuencia)
+    const descripcion = mantenimiento.descripcion || mantenimiento.observaciones || "Sin descripción"
+
     const result = await prisma.mantenimiento.create({
       data: {
         equipo_id: mantenimiento.equipoId || mantenimiento.equipo_id,
         tipo: mantenimiento.tipo?.toLowerCase(),
-        descripcion: mantenimiento.descripcion,
+        descripcion: descripcion,
         procedimiento: mantenimiento.procedimiento,
         frecuencia: mantenimiento.frecuencia?.toLowerCase(),
+        frecuencia_dias: frecuenciaDias,
         ultima_realizacion: mantenimiento.ultimaFecha ? new Date(mantenimiento.ultimaFecha) : null,
         proxima_programada: new Date(mantenimiento.proximaFecha || mantenimiento.proxima_programada),
         activo: mantenimiento.activo ?? true,
-        created_at: new Date(),
-        updated_at: new Date(),
+        creado_por: creadorId,
       }
     })
     console.log("[v0] Action: Maintenance created successfully", result)
@@ -116,11 +141,15 @@ export async function updateMantenimiento(id: number, mantenimiento: any) {
   console.log("[v0] Action: Updating maintenance", id, mantenimiento)
 
   try {
+    const frecuenciaDias = frecuenciaToDias(mantenimiento.frecuencia)
+    const descripcion = mantenimiento.descripcion || mantenimiento.observaciones
+
     const updateData: any = {
       tipo: mantenimiento.tipo?.toLowerCase(),
-      descripcion: mantenimiento.descripcion,
+      descripcion: descripcion,
       procedimiento: mantenimiento.procedimiento,
       frecuencia: mantenimiento.frecuencia?.toLowerCase(),
+      frecuencia_dias: frecuenciaDias,
       updated_at: new Date(),
     }
 

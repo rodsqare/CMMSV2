@@ -20,24 +20,38 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       prisma.orden_trabajo.count(),
     ])
     
-    // Get equipment by manufacturer
-    const equipos = await prisma.equipo.groupBy({
-      by: ['fabricante'],
-      _count: {
-        id: true
-      },
-      orderBy: {
-        _count: {
-          id: 'desc'
-        }
-      },
-      take: 4
-    })
+    // Get equipment by manufacturer - filter out null values
+    let equiposPorFabricante: Array<{ nombre: string; cantidad: number }> = []
     
-    const equiposPorFabricante = equipos.map(e => ({
-      nombre: e.fabricante,
-      cantidad: e._count.id
-    }))
+    try {
+      const equipos = await prisma.equipo.groupBy({
+        by: ['marca'],
+        _count: {
+          id: true
+        },
+        where: {
+          marca: {
+            not: null
+          }
+        },
+        orderBy: {
+          _count: {
+            id: 'desc'
+          }
+        },
+        take: 4
+      })
+      
+      equiposPorFabricante = equipos
+        .filter(e => e.marca != null)
+        .map(e => ({
+          nombre: e.marca || "Desconocido",
+          cantidad: e._count?.id || 0
+        }))
+    } catch (fabricanteError) {
+      console.warn("[v0] Error fetching equipment by manufacturer:", fabricanteError)
+      equiposPorFabricante = []
+    }
     
     // Get maintenance by month (last 6 months)
     const sixMonthsAgo = new Date()

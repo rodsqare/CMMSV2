@@ -242,35 +242,38 @@ type Equipment = {
 }
 
 function transformEquipoToEquipment(equipo: Equipo | any): Equipment {
+  // Extract specifications from JSON if they exist
+  const specs = equipo.especificaciones || {}
+  
   return {
     id: equipo.id,
-    numeroSerie: equipo.numeroSerie || equipo.numero_serie || "",
-    nombre: equipo.nombre_equipo || equipo.nombre || "",
+    numeroSerie: equipo.numero_serie || "",
+    nombre: equipo.nombre || "",
     modelo: equipo.modelo || "",
-    fabricante: equipo.fabricante || "",
+    fabricante: equipo.marca || "",
     ubicacion: equipo.ubicacion || "",
     estado: equipo.estado || "operativo",
-    voltaje: equipo.voltaje || "",
-    fechaInstalacion: equipo.fechaInstalacion || equipo.fecha_instalacion || "",
-    frecuencia: equipo.frecuencia || "",
-    fechaRetiro: equipo.fechaRetiro || equipo.fecha_adquisicion || equipo.fecha_retiro,
-    codigoInstitucional: equipo.codigoInstitucional || equipo.codigo_institucional,
-    servicio: equipo.servicio,
-    vencimientoGarantia: equipo.vencimientoGarantia || equipo.vencimiento_garantia,
-    fechaIngreso: equipo.fechaIngreso || equipo.fecha_ingreso,
-    procedencia: equipo.procedencia,
-    potencia: equipo.potencia,
-    corriente: equipo.corriente,
-    otrosEspecificaciones: equipo.otrosEspecificaciones || equipo.otros_especificaciones,
-    accesoriosConsumibles: equipo.accesoriosConsumibles || equipo.accesorios_consumibles,
-    estadoEquipo: equipo.estadoEquipo || equipo.estado_equipo,
-    manualUsuario: equipo.manualUsuario ?? equipo.manual_usuario ?? false,
-    manualServicio: equipo.manualServicio ?? equipo.manual_servicio ?? false,
-    nivelRiesgo: equipo.nivelRiesgo || equipo.nivel_riesgo,
-    proveedorNombre: equipo.proveedorNombre || equipo.proveedor_nombre,
-    proveedorDireccion: equipo.proveedorDireccion || equipo.proveedor_direccion,
-    proveedorTelefono: equipo.proveedorTelefono || equipo.proveedor_telefono,
-    observaciones: equipo.observaciones,
+    voltaje: specs.voltaje || "",
+    fechaInstalacion: specs.fechaInstalacion || "",
+    frecuencia: specs.frecuencia || "",
+    fechaRetiro: equipo.fecha_adquisicion || "",
+    codigoInstitucional: equipo.codigo || "",
+    servicio: specs.servicio,
+    vencimientoGarantia: specs.vencimientoGarantia,
+    fechaIngreso: equipo.fecha_adquisicion,
+    procedencia: specs.procedencia,
+    potencia: specs.potencia,
+    corriente: specs.corriente,
+    otrosEspecificaciones: specs.otrosEspecificaciones,
+    accesoriosConsumibles: specs.accesoriosConsumibles,
+    estadoEquipo: specs.estadoEquipo,
+    manualUsuario: specs.manualUsuario ?? false,
+    manualServicio: specs.manualServicio ?? false,
+    nivelRiesgo: specs.nivelRiesgo,
+    proveedorNombre: specs.proveedorNombre,
+    proveedorDireccion: specs.proveedorDireccion,
+    proveedorTelefono: specs.proveedorTelefono,
+    observaciones: equipo.descripcion,
     documentos: equipo.documentos || [], // Initialize as empty array
   }
 }
@@ -289,10 +292,29 @@ function transformEquipmentToEquipo(equipment: Partial<Equipment>): Partial<Equi
     criticidad: "media", // Default criticality - can be adjusted based on form input
     descripcion: equipment.observaciones,
     especificaciones: {
+      // Electrical specifications
       voltaje: equipment.voltaje,
       frecuencia: equipment.frecuencia,
       potencia: equipment.potencia,
       corriente: equipment.corriente,
+      // Additional specifications
+      servicio: equipment.servicio,
+      procedencia: equipment.procedencia,
+      otrosEspecificaciones: equipment.otrosEspecificaciones,
+      accesoriosConsumibles: equipment.accesoriosConsumibles,
+      // Equipment condition
+      estadoEquipo: equipment.estadoEquipo,
+      nivelRiesgo: equipment.nivelRiesgo,
+      // Documentation
+      manualUsuario: equipment.manualUsuario,
+      manualServicio: equipment.manualServicio,
+      // Warranty and dates
+      vencimientoGarantia: equipment.vencimientoGarantia,
+      fechaInstalacion: equipment.fechaInstalacion,
+      // Supplier information
+      proveedorNombre: equipment.proveedorNombre,
+      proveedorTelefono: equipment.proveedorTelefono,
+      proveedorDireccion: equipment.proveedorDireccion,
     },
     fecha_adquisicion: equipment.fechaIngreso || equipment.fechaRetiro,
     valor_adquisicion: null,
@@ -5722,7 +5744,7 @@ export default function DashboardPage() {
     try {
       const result = selectedMaintenance
         ? await updateMantenimiento(selectedMaintenance.id, maintenanceForm)
-        : await createMantenimiento(maintenanceForm)
+        : await createMantenimiento(maintenanceForm, currentUser?.id)
 
       if (result.success) {
         toast({
