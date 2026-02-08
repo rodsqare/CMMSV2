@@ -7,22 +7,15 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Mail, Lock } from 'lucide-react'
 import { validateLogin } from "@/app/actions/auth"
 import { getHospitalLogo } from "@/app/actions/configuracion"
 
-// Default demo credentials
-const DEMO_USERS = [
-  { correo: "admin@hospital.com", nombre: "Administrador", rol: "admin" },
-  { correo: "supervisor@hospital.com", nombre: "Supervisor", rol: "supervisor" },
-  { correo: "technician@hospital.com", nombre: "Técnico", rol: "tecnico" },
-]
+
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [hospitalLogo, setHospitalLogo] = useState<string>(
@@ -189,19 +182,7 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                {/* Remember Me and Forgot Password */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="remember"
-                      checked={rememberMe}
-                      onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-                    />
-                    <label htmlFor="remember" className="text-sm text-gray-700 cursor-pointer">
-                      Recordarme
-                    </label>
-                  </div>
-                </div>
+
 
                 {/* Error Message */}
                 {error && <p className="text-sm text-red-500">{error}</p>}
@@ -215,15 +196,7 @@ export default function LoginPage() {
                   {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
                 </Button>
 
-                {/* Demo Credentials */}
-                <div className="mt-6 rounded-md bg-blue-50 p-4">
-                  <p className="mb-2 text-xs font-semibold text-blue-900">Credenciales de demostración:</p>
-                  <div className="space-y-1 text-xs text-blue-700">
-                    <p>
-                      <span className="font-medium">Administrador:</span> admin@gmail.com
-                    </p>
-                  </div>
-                </div>
+
               </div>
             </form>
           </CardContent>
