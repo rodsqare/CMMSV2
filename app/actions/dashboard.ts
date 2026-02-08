@@ -54,17 +54,53 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     }
     
     // Get maintenance by month (last 6 months)
-    const sixMonthsAgo = new Date()
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+    const mesesNombres = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+    const mantenimientosPorMesMap = new Map<string, number>()
     
-    const mantenimientosPorMes = [
-      { mes: "Ene", cantidad: 0 },
-      { mes: "Feb", cantidad: 0 },
-      { mes: "Mar", cantidad: 0 },
-      { mes: "Abr", cantidad: 0 },
-      { mes: "May", cantidad: 0 },
-      { mes: "Jun", cantidad: 0 },
-    ]
+    // Initialize last 6 months
+    const today = new Date()
+    const sixMonthsAgo = new Date()
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5)
+    
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(today.getFullYear(), today.getMonth() - i, 1)
+      const mesKey = `${date.getFullYear()}-${String(date.getMonth()).padStart(2, '0')}`
+      mantenimientosPorMesMap.set(mesKey, 0)
+    }
+    
+    // Fetch maintenances from the database
+    try {
+      const mantenimientos = await prisma.mantenimiento.findMany({
+        select: {
+          proxima_programada: true
+        }
+      })
+      
+      // Count by month
+      mantenimientos.forEach((mant) => {
+        if (mant.proxima_programada) {
+          const fecha = new Date(mant.proxima_programada)
+          const mesKey = `${fecha.getFullYear()}-${String(fecha.getMonth()).padStart(2, '0')}`
+          if (mantenimientosPorMesMap.has(mesKey)) {
+            mantenimientosPorMesMap.set(mesKey, (mantenimientosPorMesMap.get(mesKey) || 0) + 1)
+          }
+        }
+      })
+    } catch (mantenimientoError) {
+      console.warn("[v0] Error fetching maintenance by month:", mantenimientoError)
+    }
+    
+    // Convert to array with month names
+    const mantenimientosPorMes: Array<{ mes: string; cantidad: number }> = []
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(today.getFullYear(), today.getMonth() - i, 1)
+      const mesKey = `${date.getFullYear()}-${String(date.getMonth()).padStart(2, '0')}`
+      const mesNombre = mesesNombres[date.getMonth()]
+      mantenimientosPorMes.push({
+        mes: mesNombre,
+        cantidad: mantenimientosPorMesMap.get(mesKey) || 0,
+      })
+    }
     
     return {
       usuariosCount,

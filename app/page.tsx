@@ -831,17 +831,17 @@ export default function DashboardPage() {
     setMaintenanceLoading(true)
     try {
       const params: { tipo?: string; frecuencia?: string } = {}
-
+      
       if (maintenanceFilters.tipo !== "all") {
         params.tipo = maintenanceFilters.tipo
       }
-
+      
       if (maintenanceFilters.frecuencia !== "all") {
         params.frecuencia = maintenanceFilters.frecuencia
       }
-
+      
       const response = await getAllMantenimientos(params)
-      setMaintenanceSchedules(response.data)
+      setMaintenanceSchedules(response.data || [])
 
       await checkAndCreateWorkOrdersForMaintenance(response.data)
     } catch (error) {
@@ -1072,8 +1072,21 @@ export default function DashboardPage() {
     setIsLoadingOrders(true)
 
     try {
-      const ordenToSave = selectedOrder ? { ...newOrderData, id: selectedOrder.id } : newOrderData
-      const savedOrder = await saveOrdenTrabajo(ordenToSave)
+      // Map form field names to API field names
+      const mappedData = {
+        id: selectedOrder?.id,
+        equipo_id: newOrderData.equipoId,
+        tipo: newOrderData.tipo,
+        prioridad: newOrderData.prioridad,
+        descripcion: newOrderData.descripcion,
+        estado: newOrderData.estado,
+        asignado_a: newOrderData.tecnicoAsignadoId,
+        fecha_programada: newOrderData.fechaCreacion,
+        tiempo_estimado: newOrderData.horasTrabajadas,
+        costo_estimado: newOrderData.costoTotal,
+      }
+
+      const savedOrder = await saveOrdenTrabajo(mappedData)
 
       if (savedOrder) {
         toast({
@@ -4661,6 +4674,133 @@ export default function DashboardPage() {
     )
   }
 
+  // Maintenance management functions
+  const resetMaintenanceForm = () => {
+    setMaintenanceForm({ resultado: "pendiente" })
+    setMaintenanceFormErrors({})
+  }
+
+  const handleEditMaintenance = (maintenance: Mantenimiento) => {
+    setSelectedMaintenance(maintenance)
+    setMaintenanceForm({
+      equipoId: maintenance.equipoId,
+      tipo: maintenance.tipo,
+      frecuencia: maintenance.frecuencia,
+      proximaFecha: maintenance.proximaFecha,
+      ultimaFecha: maintenance.ultimaFecha,
+      resultado: maintenance.resultado,
+      observaciones: maintenance.observaciones,
+      descripcion: maintenance.descripcion,
+      procedimiento: maintenance.procedimiento,
+      responsableId: maintenance.responsableId,
+    })
+    setShowMaintenanceForm(true)
+    setMaintenanceFormErrors({})
+  }
+
+  const handleDeleteMaintenance = async (id: number) => {
+    setSelectedMaintenanceToDelete(id)
+    setIsDeleteMaintenanceDialogOpen(true)
+  }
+
+  const confirmDeleteMaintenance = async () => {
+    if (!selectedMaintenanceToDelete) return
+
+    setMaintenanceLoading(true)
+    try {
+      const result = await deleteMantenimiento(selectedMaintenanceToDelete)
+
+      if (result.success) {
+        toast({
+          title: "Mantenimiento eliminado",
+          description: "El mantenimiento ha sido eliminado correctamente",
+        })
+        setIsDeleteMaintenanceDialogOpen(false)
+        setSelectedMaintenanceToDelete(null)
+        setShowMaintenanceDetails(false)
+        await loadMaintenanceSchedules()
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error al eliminar",
+          description: result.error || "No se pudo eliminar el mantenimiento",
+        })
+      }
+    } catch (error) {
+      console.error("[v0] Error deleting maintenance:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo eliminar el mantenimiento",
+      })
+    } finally {
+      setMaintenanceLoading(false)
+    }
+  }
+
+  const handleSaveMaintenanceSchedule = async () => {
+    // Clear previous errors
+    setMaintenanceFormErrors({})
+
+    // Validate required fields
+    const errors: { [key: string]: string } = {}
+    if (!maintenanceForm.equipoId) errors.equipoId = "El equipo es requerido"
+    if (!maintenanceForm.tipo) errors.tipo = "El tipo es requerido"
+    if (!maintenanceForm.frecuencia) errors.frecuencia = "La frecuencia es requerida"
+    if (!maintenanceForm.proximaFecha) errors.proximaFecha = "La próxima fecha es requerida"
+    if (!maintenanceForm.observaciones?.trim()) errors.observaciones = "Las observaciones son requeridas"
+
+    if (Object.keys(errors).length > 0) {
+      setMaintenanceFormErrors(errors)
+      return
+    }
+
+    setMaintenanceLoading(true)
+
+    try {
+      let result
+      
+      if (selectedMaintenance?.id) {
+        // Update existing maintenance
+        result = await updateMantenimiento(selectedMaintenance.id, maintenanceForm)
+      } else {
+        // Create new maintenance
+        result = await createMantenimiento(maintenanceForm)
+      }
+
+      if (result.success) {
+        toast({
+          title: selectedMaintenance ? "Mantenimiento actualizado" : "Mantenimiento creado",
+          description: selectedMaintenance
+            ? "El mantenimiento ha sido actualizado correctamente"
+            : "El mantenimiento ha sido creado correctamente",
+        })
+        setShowMaintenanceForm(false)
+        resetMaintenanceForm()
+        setSelectedMaintenance(null)
+        await loadMaintenanceSchedules()
+        await loadMaintenanceStats()
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: result.error || "No se pudo guardar el mantenimiento",
+        })
+        setMaintenanceFormErrors({ general: result.error || "Error al guardar" })
+      }
+    } catch (error) {
+      console.error("[v0] Error saving maintenance:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo guardar el mantenimiento",
+      })
+      setMaintenanceFormErrors({ general: "Error al guardar el mantenimiento" })
+    } finally {
+      setMaintenanceLoading(false)
+    }
+  }
+
   const renderMantenimiento = () => (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -4814,9 +4954,9 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white">
-                  {maintenanceSchedules.map((m) => (
+                  {maintenanceSchedules.map((m: any) => (
                     <tr key={m.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="px-4 py-2 font-medium">{m.equipo || "N/A"}</td>
+                      <td className="px-4 py-2 font-medium">{typeof m.equipo === 'object' ? m.equipo?.nombre : m.equipo || "N/A"}</td>
                       <td className="px-4 py-2">{m.tipo || "N/A"}</td>
                       <td className="px-4 py-2">{m.frecuencia || "N/A"}</td>
                       <td className="px-4 py-2">
@@ -5082,7 +5222,7 @@ export default function DashboardPage() {
       <Dialog open={showMaintenanceDetails} onOpenChange={setShowMaintenanceDetails}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Detalles del Mantenimiento - {selectedMaintenance?.equipo || "Cargando..."}</DialogTitle>
+                <DialogTitle>Detalles del Mantenimiento - {typeof selectedMaintenance?.equipo === 'object' ? selectedMaintenance?.equipo?.nombre : selectedMaintenance?.equipo || "Cargando..."}</DialogTitle>
           </DialogHeader>
           {selectedMaintenance && (
             <div className="space-y-6">
@@ -5090,9 +5230,9 @@ export default function DashboardPage() {
                 <div>
                   <strong>ID:</strong> {selectedMaintenance.id || "N/A"}
                 </div>
-                <div>
-                  <strong>Equipo:</strong> {selectedMaintenance.equipo || "N/A"}
-                </div>
+                  <div>
+                    <strong>Equipo:</strong> {typeof selectedMaintenance.equipo === 'object' ? selectedMaintenance.equipo?.nombre : selectedMaintenance.equipo || "N/A"}
+                  </div>
                 <div>
                   <strong>Tipo:</strong> {selectedMaintenance.tipo || "N/A"}
                 </div>
@@ -5163,10 +5303,11 @@ export default function DashboardPage() {
         await loadMaintenanceSchedules() // Reload just in case
 
         const enrichedData = await Promise.all(
-          maintenanceSchedules.map(async (mant) => {
+          maintenanceSchedules.map(async (mant: any) => {
             try {
-              // Find equipment in current equipment list
-              const equipo = equipment.find((eq) => eq.id === mant.equipoId)
+              // Find equipment - mant.equipo might already contain the equipment object or we need equipoId
+              const equipoId = mant.equipoId || mant.equipo_id || (typeof mant.equipo === 'object' ? mant.equipo?.id : mant.equipo)
+              const equipo = equipment.find((eq) => eq.id === equipoId)
               return {
                 ...mant,
                 estadoEquipo: equipo?.estadoEquipo || equipo?.estado || "-",
@@ -5695,133 +5836,7 @@ export default function DashboardPage() {
     </div>
   )
 
-  const handleEditMaintenance = (maintenance: Mantenimiento) => {
-    setShowMaintenanceDetails(false)
-    setSelectedMaintenance(maintenance)
-    setMaintenanceForm({
-      id: maintenance.id,
-      equipoId: maintenance.equipoId,
-      equipo: maintenance.equipo,
-      tipo: maintenance.tipo,
-      frecuencia: maintenance.frecuencia,
-      proximaFecha: maintenance.proximaFecha,
-      ultimaFecha: maintenance.ultimaFecha,
-      resultado: maintenance.resultado,
-      observaciones: maintenance.observaciones,
-    })
-    setShowMaintenanceForm(true)
-  }
 
-  const handleDeleteMaintenance = async (id: number) => {
-    // CHANGE: Remove browser confirm and use Dialog instead
-    setSelectedMaintenanceToDelete(id)
-    setIsDeleteMaintenanceDialogOpen(true)
-  }
-
-  // CHANGE: New function to confirm maintenance deletion
-  const confirmDeleteMaintenance = async () => {
-    if (!selectedMaintenanceToDelete) return
-
-    setMaintenanceLoading(true)
-    try {
-      const result = await deleteMantenimiento(selectedMaintenanceToDelete)
-
-      if (result.success) {
-        toast({
-          title: "Mantenimiento eliminado",
-          description: "El mantenimiento ha sido eliminado exitosamente",
-        })
-        setIsDeleteMaintenanceDialogOpen(false)
-        setSelectedMaintenanceToDelete(null)
-        setShowMaintenanceDetails(false)
-        await loadMaintenanceSchedules()
-        await loadMaintenanceStats()
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Error al eliminar",
-          description: result.error || "No se pudo eliminar el mantenimiento",
-        })
-      }
-    } catch (error) {
-      console.error("[v0] Error in confirmDeleteMaintenance:", error)
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Error de conexión al eliminar el mantenimiento",
-      })
-    } finally {
-      setMaintenanceLoading(false)
-    }
-  }
-
-  const resetMaintenanceForm = () => {
-    setMaintenanceForm({
-      resultado: "pendiente",
-    })
-    setSelectedMaintenance(null)
-  }
-
-  const handleSaveMaintenanceSchedule = async () => {
-    const errors: Record<string, string> = {}
-
-    if (!maintenanceForm.equipoId) {
-      errors.equipoId = "Debe seleccionar un equipo"
-    }
-    if (!maintenanceForm.tipo || maintenanceForm.tipo.trim() === "") {
-      errors.tipo = "El tipo de mantenimiento es requerido"
-    }
-    if (!maintenanceForm.frecuencia || maintenanceForm.frecuencia.trim() === "") {
-      errors.frecuencia = "La frecuencia es requerida"
-    }
-    if (!maintenanceForm.proximaFecha) {
-      errors.proximaFecha = "La fecha del próximo mantenimiento es requerida"
-    }
-    if (!maintenanceForm.observaciones || maintenanceForm.observaciones.trim() === "") {
-      errors.observaciones = "Las observaciones son requeridas"
-    }
-
-    if (Object.keys(errors).length > 0) {
-      setMaintenanceFormErrors(errors)
-      return
-    }
-
-    setMaintenanceFormErrors({})
-    setMaintenanceLoading(true)
-    try {
-      const result = selectedMaintenance
-        ? await updateMantenimiento(selectedMaintenance.id, maintenanceForm)
-        : await createMantenimiento(maintenanceForm, currentUser?.id)
-
-      if (result.success) {
-        toast({
-          title: selectedMaintenance ? "Mantenimiento actualizado" : "Mantenimiento programado",
-          description: `El mantenimiento ha sido ${selectedMaintenance ? "actualizado" : "programado"} exitosamente.`,
-        })
-        setShowMaintenanceForm(false)
-        resetMaintenanceForm()
-        await loadMaintenanceSchedules()
-        await loadMaintenanceStats()
-      } else {
-        setMaintenanceFormErrors({ general: result.error || "Error al guardar el mantenimiento" })
-        toast({
-          variant: "destructive",
-          title: "Error al guardar mantenimiento",
-          description: result.error || "No se pudo guardar el mantenimiento. Por favor intente de nuevo.",
-        })
-      }
-    } catch (error) {
-      console.error("[v0] Error saving maintenance:", error)
-      setMaintenanceFormErrors({ general: "Error de conexión al guardar el mantenimiento" })
-      toast({
-        variant: "destructive",
-        title: "Error de conexión",
-        description: "No se pudo conectar al servidor para guardar el mantenimiento.",
-      })
-    } finally {
-      setMaintenanceLoading(false)
-    }
-  }
 
   const handleEditEquipment = (equipo: Equipment) => {
     // Set the equipment form with all fields from the selected equipment
@@ -6015,7 +6030,7 @@ export default function DashboardPage() {
           <div className="text-center">
             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900">Acceso Denegado</h3>
-            <p className="text-gray-600 mt-2">No tienes permisos para acceder a Gestión de Usuarios</p>
+            <p className="text-gray-600 mt-2">No tienes permisos para acceder a Gesti��n de Usuarios</p>
           </div>
         </div>
       )
