@@ -25,8 +25,8 @@ class ServerApiClient {
     // If using Next.js API, build the proper URL and make the request
     let finalBaseUrl = this.baseUrl
     if (this.useNextApi && typeof window === 'undefined') {
-      // On server side, use absolute URL
-      finalBaseUrl = 'http://localhost:3000'
+      // On server side, use absolute URL with the baseUrl (which is /api)
+      finalBaseUrl = `http://localhost:3000${this.baseUrl}`
     }
 
     let url = `${finalBaseUrl}${endpoint}`
