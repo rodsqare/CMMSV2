@@ -19,6 +19,7 @@ import {
   type Usuario,
 } from "@/app/actions/usuarios"
 import { getHospitalLogo, setHospitalLogo as saveHospitalLogo } from "@/app/actions/configuracion"
+import { SmartMaintenanceCalendar } from "@/components/smart-maintenance-calendar"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -3289,7 +3290,7 @@ export default function DashboardPage() {
                               <TooltipContent>
                                 {equipmentAssociations[equipo.id]?.hasMaintenances ||
                                 equipmentAssociations[equipo.id]?.hasWorkOrders
-                                  ? "No se puede eliminar. Este equipo tiene mantenimientos u órdenes de trabajo asociadas."
+                                  ? "No se puede eliminar. Este equipo tiene mantenimientos u ��rdenes de trabajo asociadas."
                                   : "Eliminar"}
                               </TooltipContent>
                             </Tooltip>
@@ -4715,117 +4716,36 @@ export default function DashboardPage() {
   }
 
   const renderCalendar = () => {
-    const daysInMonth = getDaysInMonth(currentMonth)
-    const firstDay = getFirstDayOfMonth(currentMonth)
-    const monthName = currentMonth.toLocaleDateString("es-ES", { month: "long", year: "numeric" })
-    const days = []
-
-    // Empty cells for days before the first day of the month
-    for (let i = 0; i < firstDay; i++) {
-      days.push(<div key={`empty-${i}`} className="min-h-24 border border-gray-200 bg-gray-50" />)
-    }
-
-    // Days of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day)
-      const maintenances = getMaintenanceForDate(date)
-      const isToday =
-        date.getDate() === new Date().getDate() &&
-        date.getMonth() === new Date().getMonth() &&
-        date.getFullYear() === new Date().getFullYear()
-
-      days.push(
-        <div
-          key={day}
-          className={`min-h-24 border border-gray-200 p-2 bg-white hover:bg-gray-50 transition-colors ${
-            isToday ? "bg-blue-50 border-blue-300" : ""
-          }`}
-        >
-          <div className={`text-sm font-semibold mb-2 ${isToday ? "text-blue-600" : "text-gray-700"}`}>{day}</div>
-          <div className="space-y-1">
-            {maintenances.slice(0, 3).map((maintenance) => {
-              const status = getMaintenanceStatus(maintenance)
-              const statusColors = {
-                overdue: "bg-red-100 text-red-800 border border-red-200",
-                upcoming: "bg-yellow-100 text-yellow-800 border border-yellow-200",
-                completed: "bg-green-100 text-green-800 border border-green-200",
-                scheduled: "bg-blue-100 text-blue-800 border border-blue-200",
-              }
-
-              return (
-                <button
-                  key={maintenance.id}
-                  onClick={() => {
-                    setSelectedMaintenance(maintenance)
-                    setShowMaintenanceDetails(true)
-                  }}
-                  className={`w-full text-left text-xs p-1 rounded border ${statusColors[status]} hover:opacity-80 transition-opacity truncate`}
-                >
-                  {maintenance.equipo || `Equipo #${maintenance.equipoId}`}
-                </button>
-              )
-            })}
-            {maintenances.length > 3 && (
-              <div className="text-xs text-gray-500 pl-1">+{maintenances.length - 3} más</div>
-            )}
-          </div>
-        </div>,
-      )
-    }
-
     return (
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-semibold capitalize">{monthName}</h3>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => navigateMonth("prev")}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="sm" onClick={goToToday}>
-              Hoy
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigateMonth("next")}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Calendar Legend */}
-        <div className="flex flex-wrap items-center gap-4 mb-4 text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-red-100 border border-red-200 rounded" />
-            <span className="text-gray-700">Vencido</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-yellow-100 border border-yellow-200 rounded" />
-            <span className="text-gray-700">Próximo (7 días)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-green-100 border border-green-200 rounded" />
-            <span className="text-gray-700">Completado</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-blue-100 border border-blue-200 rounded" />
-            <span className="text-gray-700">Programado</span>
-          </div>
-        </div>
-
-        {/* Day Headers */}
-        <div className="grid grid-cols-7 gap-0 mb-0">
-          {["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"].map((day) => (
-            <div key={day} className="text-center font-semibold text-gray-700 py-2 bg-gray-100 border border-gray-200">
-              {day}
-            </div>
-          ))}
-        </div>
-
-        {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-0">{days}</div>
-
-        <div className="mt-4 text-sm text-gray-600">
-          Mostrando {maintenanceSchedules.length} de {maintenanceSchedules.length} mantenimientos programados
-        </div>
-      </div>
+      <SmartMaintenanceCalendar
+        maintenances={maintenanceSchedules}
+        currentMonth={currentMonth}
+        onMonthChange={setCurrentMonth}
+        onDateSelect={(date, suggestion) => {
+          const dateStr = date.toISOString().split('T')[0]
+          setMaintenanceForm({ ...maintenanceForm, proximaFecha: dateStr })
+          setShowMaintenanceForm(true)
+          
+          // Show suggestion if available
+          if (suggestion && suggestion.isSuggested) {
+            toast({
+              title: "Excelente opción",
+              description: "Este día tiene disponibilidad. Completa el formulario para confirmar.",
+            })
+          } else if (suggestion?.isOverloaded) {
+            toast({
+              variant: "destructive",
+              title: "Día sobrecargado",
+              description: `Hay ${suggestion.maintenanceCount} mantenimientos programados. Considera otro día.`,
+            })
+          }
+        }}
+        onMaintenanceClick={(maintenance) => {
+          setSelectedMaintenance(maintenance as any)
+          setShowMaintenanceDetails(true)
+        }}
+        disabled={maintenanceLoading}
+      />
     )
   }
 
