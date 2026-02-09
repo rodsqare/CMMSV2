@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { prisma, waitForDbInit } from '@/lib/prisma'
 import type { OrdenTrabajo } from '@/lib/api/ordenes-trabajo'
 
 // Helper to transform database record to OrdenTrabajo type
@@ -21,6 +21,9 @@ function transformFromDB(record: any): OrdenTrabajo {
 
 export async function createOrdenDB(data: any): Promise<OrdenTrabajo> {
   console.log('[v0] createOrdenDB - Creating with data:', data)
+  
+  // Ensure database is initialized
+  await waitForDbInit()
   
   const orden = await prisma.orden_trabajo.create({
     data: {
@@ -47,6 +50,8 @@ export async function createOrdenDB(data: any): Promise<OrdenTrabajo> {
 }
 
 export async function getOrdenDB(id: number): Promise<OrdenTrabajo | null> {
+  await waitForDbInit()
+  
   const orden = await prisma.orden_trabajo.findUnique({
     where: { id },
     include: {
@@ -61,6 +66,8 @@ export async function getOrdenDB(id: number): Promise<OrdenTrabajo | null> {
 }
 
 export async function getOrdenesDB(filters?: any): Promise<OrdenTrabajo[]> {
+  await waitForDbInit()
+  
   const ordenes = await prisma.orden_trabajo.findMany({
     where: {
       deleted_at: null,
@@ -82,6 +89,8 @@ export async function getOrdenesDB(filters?: any): Promise<OrdenTrabajo[]> {
 
 export async function updateOrdenDB(id: number, data: any): Promise<OrdenTrabajo> {
   console.log('[v0] updateOrdenDB - Updating orden', id, 'with data:', data)
+  
+  await waitForDbInit()
   
   const updateData: any = {}
   
@@ -114,6 +123,8 @@ export async function updateOrdenDB(id: number, data: any): Promise<OrdenTrabajo
 export async function deleteOrdenDB(id: number): Promise<boolean> {
   console.log('[v0] deleteOrdenDB - Deleting orden', id)
   
+  await waitForDbInit()
+  
   await prisma.orden_trabajo.update({
     where: { id },
     data: {
@@ -128,6 +139,8 @@ export async function deleteOrdenDB(id: number): Promise<boolean> {
 
 export async function asignarTecnicoDB(ordenId: number, tecnicoId: number): Promise<OrdenTrabajo> {
   console.log('[v0] asignarTecnicoDB - Assigning tecnico', tecnicoId, 'to orden', ordenId)
+  
+  await waitForDbInit()
   
   const orden = await prisma.orden_trabajo.update({
     where: { id: ordenId },
@@ -151,6 +164,8 @@ export async function cambiarEstadoDB(
   nuevoEstado: string,
 ): Promise<OrdenTrabajo> {
   console.log('[v0] cambiarEstadoDB - Changing estado of orden', ordenId, 'to', nuevoEstado)
+  
+  await waitForDbInit()
   
   const orden = await prisma.orden_trabajo.update({
     where: { id: ordenId },
