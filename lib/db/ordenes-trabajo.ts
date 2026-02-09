@@ -22,93 +22,47 @@ function transformFromDB(record: any): OrdenTrabajo {
 export async function createOrdenDB(data: any): Promise<OrdenTrabajo> {
   console.log('[v0] createOrdenDB - Creating with data:', data)
   
-  try {
-    // Ensure database is initialized
-    await waitForDbInit()
-    
-    if (!prisma) {
-      throw new Error('Prisma client not initialized')
-    }
+  // Ensure database is initialized
+  await waitForDbInit()
+  
+  const orden = await prisma.orden_trabajo.create({
+    data: {
+      equipo_id: data.equipo_id,
+      tipo: data.tipo,
+      prioridad: data.prioridad,
+      descripcion: data.descripcion,
+      estado: 'pendiente',
+      fecha_programada: data.fecha_programada ? new Date(data.fecha_programada) : null,
+      tiempo_estimado: data.tiempo_estimado || null,
+      costo_estimado: data.costo_estimado || null,
+      asignado_a: data.asignado_a || null,
+      creado_por: data.creado_por || 1, // Default to user 1 if not provided
+    },
+    include: {
+      equipo: true,
+      tecnico: true,
+      creador: true,
+    },
+  })
 
-    const orden = await prisma.orden_trabajo.create({
-      data: {
-        equipo_id: data.equipo_id,
-        tipo: data.tipo,
-        prioridad: data.prioridad,
-        descripcion: data.descripcion,
-        estado: 'pendiente',
-        fecha_programada: data.fecha_programada ? new Date(data.fecha_programada) : null,
-        tiempo_estimado: data.tiempo_estimado || null,
-        costo_estimado: data.costo_estimado || null,
-        asignado_a: data.asignado_a || null,
-        creado_por: data.creado_por || 1, // Default to user 1 if not provided
-      },
-      include: {
-        equipo: true,
-        tecnico: true,
-        creador: true,
-      },
-    })
-
-    console.log('[v0] createOrdenDB - Created orden:', orden.id)
-    return transformFromDB(orden)
-  } catch (error) {
-    console.error('[v0] createOrdenDB - Error:', error)
-    throw error
-  }
+  console.log('[v0] createOrdenDB - Created orden:', orden.id)
+  return transformFromDB(orden)
 }
 
 export async function getOrdenDB(id: number): Promise<OrdenTrabajo | null> {
-  try {
-    await waitForDbInit()
-    
-    if (!prisma) {
-      throw new Error('Prisma client not initialized')
-    }
-    
-    const orden = await prisma.orden_trabajo.findUnique({
-      where: { id },
-      include: {
-        equipo: true,
-        tecnico: true,
-        creador: true,
-      },
-    })
+  await waitForDbInit()
+  
+  const orden = await prisma.orden_trabajo.findUnique({
+    where: { id },
+    include: {
+      equipo: true,
+      tecnico: true,
+      creador: true,
+    },
+  })
 
-    if (!orden) return null
-    return transformFromDB(orden)
-  } catch (error) {
-    console.error('[v0] getOrdenDB - Error:', error)
-    throw error
-  }
-}
-
-export async function getOrdenesDB(filters?: any): Promise<OrdenTrabajo[]> {
-  try {
-    await waitForDbInit()
-    
-    if (!prisma) {
-      throw new Error('Prisma client not initialized')
-    }
-    
-    const ordenes = await prisma.orden_trabajo.findMany({
-      where: {
-        deleted_at: null,
-        ...(filters?.estado && { estado: filters.estado }),
-        ...(filters?.prioridad && { prioridad: filters.prioridad }),
-      },
-      include: {
-        equipo: true,
-        tecnico: true,
-        creador: true,
-      },
-    })
-
-    return ordenes.map(transformFromDB)
-  } catch (error) {
-    console.error('[v0] getOrdenesDB - Error:', error)
-    throw error
-  }
+  if (!orden) return null
+  return transformFromDB(orden)
 }
 
 export async function getOrdenesDB(filters?: any): Promise<OrdenTrabajo[]> {
@@ -136,100 +90,73 @@ export async function getOrdenesDB(filters?: any): Promise<OrdenTrabajo[]> {
 export async function updateOrdenDB(id: number, data: any): Promise<OrdenTrabajo> {
   console.log('[v0] updateOrdenDB - Updating orden', id, 'with data:', data)
   
-  try {
-    await waitForDbInit()
-    
-    if (!prisma) {
-      throw new Error('Prisma client not initialized')
-    }
-    
-    const updateData: any = {}
-    
-    if (data.equipo_id !== undefined) updateData.equipo_id = data.equipo_id
-    if (data.tipo !== undefined) updateData.tipo = data.tipo
-    if (data.prioridad !== undefined) updateData.prioridad = data.prioridad
-    if (data.descripcion !== undefined) updateData.descripcion = data.descripcion
-    if (data.estado !== undefined) updateData.estado = data.estado
-    if (data.fecha_programada !== undefined) {
-      updateData.fecha_programada = data.fecha_programada ? new Date(data.fecha_programada) : null
-    }
-    if (data.tiempo_estimado !== undefined) updateData.tiempo_estimado = data.tiempo_estimado
-    if (data.costo_estimado !== undefined) updateData.costo_estimado = data.costo_estimado
-    if (data.asignado_a !== undefined) updateData.asignado_a = data.asignado_a
-
-    const orden = await prisma.orden_trabajo.update({
-      where: { id },
-      data: updateData,
-      include: {
-        equipo: true,
-        tecnico: true,
-        creador: true,
-      },
-    })
-
-    console.log('[v0] updateOrdenDB - Updated orden:', id)
-    return transformFromDB(orden)
-  } catch (error) {
-    console.error('[v0] updateOrdenDB - Error:', error)
-    throw error
+  await waitForDbInit()
+  
+  const updateData: any = {}
+  
+  if (data.equipo_id !== undefined) updateData.equipo_id = data.equipo_id
+  if (data.tipo !== undefined) updateData.tipo = data.tipo
+  if (data.prioridad !== undefined) updateData.prioridad = data.prioridad
+  if (data.descripcion !== undefined) updateData.descripcion = data.descripcion
+  if (data.estado !== undefined) updateData.estado = data.estado
+  if (data.fecha_programada !== undefined) {
+    updateData.fecha_programada = data.fecha_programada ? new Date(data.fecha_programada) : null
   }
+  if (data.tiempo_estimado !== undefined) updateData.tiempo_estimado = data.tiempo_estimado
+  if (data.costo_estimado !== undefined) updateData.costo_estimado = data.costo_estimado
+  if (data.asignado_a !== undefined) updateData.asignado_a = data.asignado_a
+
+  const orden = await prisma.orden_trabajo.update({
+    where: { id },
+    data: updateData,
+    include: {
+      equipo: true,
+      tecnico: true,
+      creador: true,
+    },
+  })
+
+  console.log('[v0] updateOrdenDB - Updated orden:', id)
+  return transformFromDB(orden)
 }
 
 export async function deleteOrdenDB(id: number): Promise<boolean> {
   console.log('[v0] deleteOrdenDB - Deleting orden', id)
   
-  try {
-    await waitForDbInit()
-    
-    if (!prisma) {
-      throw new Error('Prisma client not initialized')
-    }
-    
-    await prisma.orden_trabajo.update({
-      where: { id },
-      data: {
-        estado: 'cancelada',
-        deleted_at: new Date(),
-      },
-    })
+  await waitForDbInit()
+  
+  await prisma.orden_trabajo.update({
+    where: { id },
+    data: {
+      estado: 'cancelada',
+      deleted_at: new Date(),
+    },
+  })
 
-    console.log('[v0] deleteOrdenDB - Deleted orden:', id)
-    return true
-  } catch (error) {
-    console.error('[v0] deleteOrdenDB - Error:', error)
-    throw error
-  }
+  console.log('[v0] deleteOrdenDB - Deleted orden:', id)
+  return true
 }
 
 export async function asignarTecnicoDB(ordenId: number, tecnicoId: number): Promise<OrdenTrabajo> {
   console.log('[v0] asignarTecnicoDB - Assigning tecnico', tecnicoId, 'to orden', ordenId)
   
-  try {
-    await waitForDbInit()
-    
-    if (!prisma) {
-      throw new Error('Prisma client not initialized')
-    }
-    
-    const orden = await prisma.orden_trabajo.update({
-      where: { id: ordenId },
-      data: {
-        asignado_a: tecnicoId,
-        estado: 'asignada',
-      },
-      include: {
-        equipo: true,
-        tecnico: true,
-        creador: true,
-      },
-    })
+  await waitForDbInit()
+  
+  const orden = await prisma.orden_trabajo.update({
+    where: { id: ordenId },
+    data: {
+      asignado_a: tecnicoId,
+      estado: 'asignada',
+    },
+    include: {
+      equipo: true,
+      tecnico: true,
+      creador: true,
+    },
+  })
 
-    console.log('[v0] asignarTecnicoDB - Assigned tecnico')
-    return transformFromDB(orden)
-  } catch (error) {
-    console.error('[v0] asignarTecnicoDB - Error:', error)
-    throw error
-  }
+  console.log('[v0] asignarTecnicoDB - Assigned tecnico')
+  return transformFromDB(orden)
 }
 
 export async function cambiarEstadoDB(
@@ -238,29 +165,20 @@ export async function cambiarEstadoDB(
 ): Promise<OrdenTrabajo> {
   console.log('[v0] cambiarEstadoDB - Changing estado of orden', ordenId, 'to', nuevoEstado)
   
-  try {
-    await waitForDbInit()
-    
-    if (!prisma) {
-      throw new Error('Prisma client not initialized')
-    }
-    
-    const orden = await prisma.orden_trabajo.update({
-      where: { id: ordenId },
-      data: {
-        estado: nuevoEstado,
-      },
-      include: {
-        equipo: true,
-        tecnico: true,
-        creador: true,
-      },
-    })
+  await waitForDbInit()
+  
+  const orden = await prisma.orden_trabajo.update({
+    where: { id: ordenId },
+    data: {
+      estado: nuevoEstado,
+    },
+    include: {
+      equipo: true,
+      tecnico: true,
+      creador: true,
+    },
+  })
 
-    console.log('[v0] cambiarEstadoDB - Changed estado')
-    return transformFromDB(orden)
-  } catch (error) {
-    console.error('[v0] cambiarEstadoDB - Error:', error)
-    throw error
-  }
+  console.log('[v0] cambiarEstadoDB - Changed estado')
+  return transformFromDB(orden)
 }

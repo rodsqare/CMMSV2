@@ -40,8 +40,6 @@ export function SmartMaintenanceCalendar({
 
     // Mapear últimas fechas de mantenimiento por equipo
     maintenances.forEach((m) => {
-      if (!m.proximaFecha) return // Skip if no date
-      
       const date = new Date(m.proximaFecha)
       const equipoId = m.equipoId
       
@@ -56,10 +54,9 @@ export function SmartMaintenanceCalendar({
       const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day)
       const dateStr = date.toISOString().split('T')[0]
       
-      const dayMaintenances = maintenances.filter((m) => {
-        if (!m.proximaFecha) return false
-        return m.proximaFecha.split('T')[0] === dateStr
-      })
+      const dayMaintenances = maintenances.filter(
+        (m) => m.proximaFecha.split('T')[0] === dateStr
+      )
 
       // Contar conflictos (múltiples en el mismo equipo)
       const equipoCount: Record<number, number> = {}
@@ -225,10 +222,9 @@ export function SmartMaintenanceCalendar({
             const dateStr = date.toISOString().split('T')[0]
             const status = getDateStatus(date)
             const suggestion = smartSuggestions[dateStr]
-            const dayMaintenances = maintenances.filter((m) => {
-              if (!m.proximaFecha) return false
-              return m.proximaFecha.split('T')[0] === dateStr
-            })
+            const dayMaintenances = maintenances.filter(
+              (m) => m.proximaFecha.split('T')[0] === dateStr
+            )
 
             let bgColor = 'bg-white'
             let borderColor = 'border-gray-200'
@@ -293,10 +289,7 @@ export function SmartMaintenanceCalendar({
           </p>
           {(() => {
             const dateStr = hoveredDate.toISOString().split('T')[0]
-            const dayMaintenances = maintenances.filter((m) => {
-              if (!m.proximaFecha) return false
-              return m.proximaFecha.split('T')[0] === dateStr
-            })
+            const dayMaintenances = maintenances.filter((m) => m.proximaFecha.split('T')[0] === dateStr)
             const suggestion = smartSuggestions[dateStr]
 
             if (dayMaintenances.length === 0) {
