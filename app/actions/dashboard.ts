@@ -46,7 +46,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
         .filter(e => e.marca != null)
         .map(e => ({
           nombre: e.marca || "Desconocido",
-          cantidad: e._count?.id || 0
+          cantidad: e._count.id || 0
         }))
     } catch (fabricanteError) {
       console.warn("[v0] Error fetching equipment by manufacturer:", fabricanteError)
@@ -59,12 +59,10 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     
     // Initialize last 6 months
     const today = new Date()
-    const sixMonthsAgo = new Date()
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5)
     
     for (let i = 5; i >= 0; i--) {
       const date = new Date(today.getFullYear(), today.getMonth() - i, 1)
-      const monthNum = String(date.getMonth() + 1).padStart(2, '0') // Add 1 since getMonth() returns 0-11
+      const monthNum = String(date.getMonth() + 1).padStart(2, '0')
       const mesKey = `${date.getFullYear()}-${monthNum}`
       mantenimientosPorMesMap.set(mesKey, 0)
     }
@@ -105,6 +103,13 @@ export async function getDashboardStats(): Promise<DashboardStats> {
         cantidad,
       })
     }
+    
+    console.log("[v0] Dashboard stats loaded successfully:", {
+      usuariosCount,
+      equiposCount,
+      mantenimientosCount,
+      ordenesCount,
+    })
     
     return {
       usuariosCount,

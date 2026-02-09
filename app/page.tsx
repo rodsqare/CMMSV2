@@ -5838,7 +5838,7 @@ export default function DashboardPage() {
               <div className="flex items-center gap-4">
                 <div className="w-24 h-24 border-2 border-dashed rounded-lg flex items-center justify-center overflow-hidden">
                   {isMounted ? (
-                    <img src={hospitalLogo || "/placeholder.svg"} alt="Logo" className="w-full h-full object-contain" />
+                    <img src={hospitalLogo || "/logo.png"} alt="Logo" className="w-full h-full object-contain" />
                   ) : (
                     <div className="w-full h-full bg-gray-200 animate-pulse rounded" />
                   )}
