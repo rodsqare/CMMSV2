@@ -4,7 +4,7 @@ import { TooltipContent } from "@/components/ui/tooltip"
 
 import React from "react"
 
-import { useState, useEffect, useCallback, useMemo } from "react" // Added useMemo
+import { useState, useEffect, useCallback, useMemo, useRef } from "react" // Added useRef
 import { getDashboardStats, type DashboardStats } from "@/app/actions/dashboard"
 import { fetchEquipos, saveEquipo, removeEquipo, fetchEquipoDetails, getEquipo, checkEquipoAssociations, type Equipo } from "@/app/actions/equipos"
 import {
@@ -20,6 +20,7 @@ import {
 } from "@/app/actions/usuarios"
 import { getHospitalLogo, setHospitalLogo as saveHospitalLogo } from "@/app/actions/configuracion"
 import { SmartMaintenanceCalendar } from "@/components/smart-maintenance-calendar"
+import { AbortableModuleLoader, deduplicateRequest, clearCache } from "@/lib/utils/module-loader"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -339,6 +340,13 @@ function transformEquipmentToEquipo(equipment: Partial<Equipment>): Partial<Equi
 export default function DashboardPage() {
   const router = useRouter()
   const { toast } = useToast() // Initialize toast
+  
+  // Module loaders with abort capability
+  const equipmentLoaderRef = useRef(new AbortableModuleLoader("equipos"))
+  const usersLoaderRef = useRef(new AbortableModuleLoader("usuarios"))
+  const maintenanceLoaderRef = useRef(new AbortableModuleLoader("mantenimiento"))
+  const ordersLoaderRef = useRef(new AbortableModuleLoader("ordenes"))
+  
   const [activeSection, setActiveSection] = useState("dashboard")
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true) // Moved loading state here
@@ -545,8 +553,21 @@ export default function DashboardPage() {
     })
   }, [])
 
-  const loadEquipment = async () => {
+  // Cleanup: abort all pending requests when component unmounts or section changes
+  useEffect(() => {
+    return () => {
+      console.log("[v0] Component cleanup - aborting pending module loads")
+      equipmentLoaderRef.current.abort()
+      usersLoaderRef.current.abort()
+      maintenanceLoaderRef.current.abort()
+      ordersLoaderRef.current.abort()
+    }
+  }, [])
+
+  const loadEquipment = useCallback(async () => {
+    console.log("[v0] loadEquipment - Starting with filters:", { currentPage, perPage, searchTerm, equipmentFilters })
     setEquipmentLoading(true)
+    
     try {
       const params = {
         page: currentPage,
@@ -557,11 +578,19 @@ export default function DashboardPage() {
         fabricante: equipmentFilters.fabricante !== "all" ? equipmentFilters.fabricante : undefined,
       }
 
-      const response = await fetchEquipos(params)
+      // Use deduplicated request to avoid concurrent calls
+      const response = await deduplicateRequest(
+        `equipos_${JSON.stringify(params)}`,
+        () => fetchEquipos(params),
+        3 * 60 * 1000 // 3 minute cache
+      )
+      
       const transformedEquipment = response.data.map(transformEquipoToEquipment)
       setEquipment(transformedEquipment)
       setTotalEquipment(response.total)
+      console.log("[v0] loadEquipment - Successfully loaded", transformedEquipment.length, "items")
     } catch (error) {
+      console.error("[v0] loadEquipment - Error:", error)
       // If it fails, use mock data as a fallback
       setEquipment([
         {
@@ -596,19 +625,21 @@ export default function DashboardPage() {
     } finally {
       setEquipmentLoading(false)
     }
-  }
+  }, [currentPage, perPage, searchTerm, equipmentFilters])
 
   // Initial load of equipment data when the component mounts.
   useEffect(() => {
+    console.log("[v0] Component mounted - loading initial data")
     loadEquipment()
-  }, [])
+  }, [loadEquipment])
 
   // Re-load equipment data when the 'equipos' section becomes active.
   useEffect(() => {
     if (activeSection === "equipos") {
+      console.log("[v0] Section changed to equipos - loading data")
       loadEquipment()
     }
-  }, [activeSection])
+  }, [activeSection, loadEquipment])
 
   const checkAndCreateWorkOrdersForMaintenance = async (mantenimientos: Mantenimiento[]) => {
     const today = new Date()
