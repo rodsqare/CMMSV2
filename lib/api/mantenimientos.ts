@@ -51,7 +51,7 @@ export interface MantenimientosPaginados {
   lastPage: number
 }
 
-const transformMantenimientoFromBackend = (backend: any): Mantenimiento => {
+const transformMantenimientoFromBackend = (backend: any): any => {
   console.log("[v0] Transforming from backend:", backend)
 
   // Handle both direct response and wrapped response
@@ -65,8 +65,8 @@ const transformMantenimientoFromBackend = (backend: any): Mantenimiento => {
     frecuencia: data.frecuencia,
     proximaFecha: data.proxima_programada,
     ultimaFecha: data.ultima_realizacion,
-    resultado: data.descripcion,
-    observaciones: data.procedimiento,
+    resultado: data.procedimiento,
+    observaciones: data.descripcion,
     responsableId: data.creado_por,
     responsableNombre: data.creador?.nombre,
     creadoEn: data.created_at,
@@ -86,8 +86,8 @@ const transformMantenimientoToBackend = (
     frecuencia: mantenimiento.frecuencia?.toLowerCase(),
     proxima_programada: mantenimiento.proximaFecha,
     ultima_realizacion: mantenimiento.ultimaFecha,
-    descripcion: mantenimiento.resultado?.toLowerCase(),
-    procedimiento: mantenimiento.observaciones,
+    descripcion: mantenimiento.observaciones,
+    procedimiento: mantenimiento.resultado?.toLowerCase(),
     creado_por: mantenimiento.tecnicoAsignadoId || mantenimiento.responsableId,
   }
 

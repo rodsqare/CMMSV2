@@ -60,10 +60,17 @@ export async function GET(request: NextRequest) {
     ])
     
     // Equipos por estado
-    const equiposPorEstado = await prisma.equipo.groupBy({
+    const equiposPorEstadoRaw = await prisma.equipo.groupBy({
       by: ['estado'],
-      _count: true,
+      _count: {
+        id: true,
+      },
     })
+    
+    const equiposPorEstado = equiposPorEstadoRaw.map(item => ({
+      estado: item.estado,
+      count: item._count.id,
+    }))
     
     // Órdenes por mes (últimos 6 meses)
     const ordenesPorMes = await prisma.$queryRaw`
