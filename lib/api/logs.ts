@@ -19,7 +19,7 @@ export function filterLogs(logs: AuditLog[], searchTerm: string, actionFilter: s
   return logs.filter((log) => {
     const matchesSearch =
       log.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.usuario.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      log.usuario?.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       log.modulo.toLowerCase().includes(searchTerm.toLowerCase())
 
     const matchesAction = actionFilter === "all" || log.accion === actionFilter

@@ -69,26 +69,34 @@ export async function GET(request: NextRequest) {
 
 // POST - Crear orden de trabajo
 const createOrdenSchema = z.object({
-  equipo_id: z.number({ required_error: 'Equipo requerido' }),
+  equipo_id: z.number({ required_error: 'Equipo requerido' }).or(z.string().transform(Number)),
   tipo: z.string().min(1, 'Tipo requerido'),
   prioridad: z.string().min(1, 'Prioridad requerida'),
   descripcion: z.string().min(1, 'Descripción requerida'),
-  fecha_programada: z.string().optional(),
-  tiempo_estimado: z.number().optional(),
-  costo_estimado: z.number().optional(),
-  asignado_a: z.number().optional(),
-})
+  fecha_programada: z.string().optional().or(z.null()),
+  tiempo_estimado: z.number().optional().or(z.null()),
+  costo_estimado: z.number().optional().or(z.null()),
+  asignado_a: z.number().optional().or(z.null()),
+}).strict()
 
 export async function POST(request: NextRequest) {
   try {
     const session = await requireAuth()
     const body = await request.json()
     
+    console.log('[v0] POST /ordenes - Received body:', JSON.stringify(body, null, 2))
+    
     const validation = createOrdenSchema.safeParse(body)
     if (!validation.success) {
-      const firstError = validation.error.errors?.[0]?.message || 'Validación fallida'
+      const errors = validation.error.errors.map(e => ({
+        path: e.path.join('.'),
+        message: e.message,
+        code: e.code
+      }))
+      console.error('[v0] POST /ordenes - Validation errors:', errors)
+      const firstError = errors[0]?.message || 'Validación fallida'
       return NextResponse.json(
-        { error: firstError },
+        { error: firstError, details: errors },
         { status: 400 }
       )
     }
@@ -141,8 +149,8 @@ export async function POST(request: NextRequest) {
     await prisma.log.create({
       data: {
         usuario_id: session.id,
-        accion: 'crear',
-        modulo: 'ordenes',
+        accion: 'Crear',
+        modulo: 'Órdenes de Trabajo',
         descripcion: `Orden de trabajo creada: ${orden.numero_orden}`,
         datos: { orden_id: orden.id },
       },

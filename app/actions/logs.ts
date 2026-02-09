@@ -6,14 +6,14 @@ export async function fetchAuditLogs(search?: string, action?: string, perPage =
   try {
     const where: any = {}
     
-    if (action) {
+    if (action && action !== "all") {
       where.accion = action
     }
     
     if (search) {
       where.OR = [
-        { descripcion: { contains: search } },
-        { modulo: { contains: search } },
+        { descripcion: { contains: search, mode: 'insensitive' } },
+        { modulo: { contains: search, mode: 'insensitive' } },
       ]
     }
 
@@ -31,7 +31,7 @@ export async function fetchAuditLogs(search?: string, action?: string, perPage =
       take: perPage,
       orderBy: { created_at: 'desc' }
     })
-
+    
     return {
       success: true,
       data: result,

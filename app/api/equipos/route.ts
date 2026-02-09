@@ -112,8 +112,8 @@ export async function POST(request: NextRequest) {
     await prisma.log.create({
       data: {
         usuario_id: session.id,
-        accion: 'crear',
-        modulo: 'equipos',
+        accion: 'Crear',
+        modulo: 'Equipos',
         descripcion: `Equipo creado: ${equipo.nombre}`,
         datos: { equipo_id: equipo.id },
       },

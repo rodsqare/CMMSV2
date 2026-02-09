@@ -123,7 +123,19 @@ function formatDate(dateString: string | undefined | null): string {
   if (!dateString) return "-"
 
   try {
-    const date = new Date(dateString)
+    let date: Date
+    if (typeof dateString === 'string') {
+      // Handle ISO date strings (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss)
+      const parts = dateString.split('T')[0].split('-')
+      if (parts.length === 3) {
+        date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
+      } else {
+        date = new Date(dateString)
+      }
+    } else {
+      date = new Date(dateString)
+    }
+    
     if (isNaN(date.getTime())) return "-"
 
     const day = String(date.getDate()).padStart(2, "0")
@@ -132,6 +144,7 @@ function formatDate(dateString: string | undefined | null): string {
 
     return `${day}-${month}-${year}`
   } catch (error) {
+    console.error('[v0] Error in formatDate:', error)
     return "-"
   }
 }
@@ -598,18 +611,36 @@ export default function DashboardPage() {
 
   const checkAndCreateWorkOrdersForMaintenance = async (mantenimientos: Mantenimiento[]) => {
     const today = new Date()
+    today.setHours(0, 0, 0, 0)
     const sevenDaysFromNow = new Date()
     sevenDaysFromNow.setDate(today.getDate() + 7)
 
     for (const m of mantenimientos) {
-      const proximaFecha = new Date(m.proximaFecha)
-      const diasFaltantes = Math.ceil((proximaFecha.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+      try {
+        let proximaFecha: Date
+        if (typeof m.proximaFecha === 'string') {
+          const parts = m.proximaFecha.split('T')[0].split('-')
+          if (parts.length === 3) {
+            proximaFecha = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
+          } else {
+            proximaFecha = new Date(m.proximaFecha)
+          }
+        } else {
+          proximaFecha = new Date(m.proximaFecha)
+        }
+        
+        proximaFecha.setHours(0, 0, 0, 0)
+        const diasFaltantes = Math.ceil((proximaFecha.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 
-      // If 7 days or less and date is in the future
-      if (diasFaltantes <= 7 && diasFaltantes > 0 && m.resultado === "pendiente") {
-        console.log(`[v0] Mantenimiento ${m.id} necesita orden de trabajo. Faltan ${diasFaltantes} días`)
-        // TODO: Implement actual work order creation if needed, based on existing logic.
-        // For now, this is a placeholder for the check.
+        // If 7 days or less and date is in the future
+        const resultado = m.resultado?.toLowerCase()
+        if (diasFaltantes <= 7 && diasFaltantes > 0 && resultado === "pendiente") {
+          console.log(`[v0] Mantenimiento ${m.id} necesita orden de trabajo. Faltan ${diasFaltantes} días`)
+          // TODO: Implement actual work order creation if needed, based on existing logic.
+          // For now, this is a placeholder for the check.
+        }
+      } catch (error) {
+        console.error('[v0] Error checking maintenance dates:', error)
       }
     }
   }
@@ -624,12 +655,15 @@ export default function DashboardPage() {
   const loadAuditLogs = async () => {
     try {
       const result = await fetchAuditLogs(logSearchTerm, logActionFilter, 100)
-
-      if (result.success && result.data && result.data.data && Array.isArray(result.data.data)) {
-        setAuditLogs(result.data.data)
+      
+      // Handle both array and object responses
+      const logsData = Array.isArray(result) ? result : (result.data && Array.isArray(result.data) ? result.data : [])
+      
+      if (logsData.length > 0) {
+        setAuditLogs(logsData)
         toast({
           title: "Logs cargados",
-          description: `Se cargaron ${result.data.data.length} registros de auditoría`,
+          description: `Se cargaron ${logsData.length} registros de auditoría`,
         })
       } else {
         setAuditLogs([])
@@ -807,9 +841,12 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        console.log("[v0] Dashboard - fetching stats for user:", currentUser?.id)
         const data = await getDashboardStats()
+        console.log("[v0] Dashboard - stats received:", data)
         setStats(data)
       } catch (error) {
+        console.error("[v0] Dashboard - error fetching stats:", error)
         setStats({
           usuariosCount: 0,
           equiposCount: 0,
@@ -1059,12 +1096,21 @@ export default function DashboardPage() {
 
     // Validate required fields
     const errors: { [key: string]: string } = {}
-    if (!newOrderData.equipoId) errors.equipoId = "El equipo es requerido"
-    if (!newOrderData.tipo) errors.tipo = "El tipo es requerido"
-    if (!newOrderData.prioridad) errors.prioridad = "La prioridad es requerida"
-    if (!newOrderData.descripcion?.trim()) errors.descripcion = "La descripción es requerida"
+    if (!newOrderData.equipoId || newOrderData.equipoId <= 0) {
+      errors.equipoId = "El equipo es requerido"
+    }
+    if (!newOrderData.tipo?.trim()) {
+      errors.tipo = "El tipo es requerido"
+    }
+    if (!newOrderData.prioridad?.trim()) {
+      errors.prioridad = "La prioridad es requerida"
+    }
+    if (!newOrderData.descripcion?.trim()) {
+      errors.descripcion = "La descripción es requerida"
+    }
 
     if (Object.keys(errors).length > 0) {
+      console.log("[v0] handleSaveOrder - Validation errors:", errors)
       setOrderFormErrors(errors)
       return
     }
@@ -1072,20 +1118,23 @@ export default function DashboardPage() {
     setIsLoadingOrders(true)
 
     try {
-      // Map form field names to API field names
-      const mappedData = {
+      // Create data object with camelCase field names for OrdenTrabajo interface
+      const mappedData: Partial<OrdenTrabajo> = {
         id: selectedOrder?.id,
-        equipo_id: newOrderData.equipoId,
+        equipoId: newOrderData.equipoId,
         tipo: newOrderData.tipo,
         prioridad: newOrderData.prioridad,
         descripcion: newOrderData.descripcion,
         estado: newOrderData.estado,
-        asignado_a: newOrderData.tecnicoAsignadoId,
-        fecha_programada: newOrderData.fechaCreacion,
-        tiempo_estimado: newOrderData.horasTrabajadas,
-        costo_estimado: newOrderData.costoTotal,
+        tecnicoAsignadoId: newOrderData.tecnicoAsignadoId,
+        fechaCreacion: newOrderData.fechaCreacion,
+        horasTrabajadas: newOrderData.horasTrabajadas,
+        costoRepuestos: newOrderData.costoRepuestos,
+        costoTotal: newOrderData.costoTotal,
+        observaciones: newOrderData.observaciones,
       }
 
+      console.log("[v0] handleSaveOrder - Mapped data before save:", mappedData)
       const savedOrder = await saveOrdenTrabajo(mappedData)
 
       if (savedOrder) {
@@ -1096,13 +1145,22 @@ export default function DashboardPage() {
             : "La orden de trabajo ha sido creada correctamente",
         })
         setIsOrderDialogOpen(false)
+        setNewOrderData({
+          tipo: "Preventivo",
+          prioridad: "media",
+          estado: "abierta",
+          fechaCreacion: new Date().toISOString().split("T")[0],
+        })
+        setSelectedOrder(null)
         await loadWorkOrders()
       } else {
         throw new Error("No se recibió respuesta del servidor")
       }
     } catch (error) {
+      console.error("[v0] handleSaveOrder - Error:", error)
+      const errorMessage = error instanceof Error ? error.message : "Error desconocido"
       setOrderFormErrors({
-        general: "Error al guardar la orden. Por favor intente nuevamente.",
+        general: `Error al guardar la orden: ${errorMessage}`,
       })
       toast({
         variant: "destructive",
@@ -2579,31 +2637,43 @@ export default function DashboardPage() {
           <Card>
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold mb-4">Equipos por Fabricante</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={stats?.equiposPorFabricante || []}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="nombre" />
-                  <YAxis />
-                  <RechartsTooltip />
-                  <Bar dataKey="cantidad" fill="#f97316" />
-                </BarChart>
-              </ResponsiveContainer>
+              {stats?.equiposPorFabricante && stats.equiposPorFabricante.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={stats.equiposPorFabricante}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="nombre" />
+                    <YAxis />
+                    <RechartsTooltip />
+                    <Bar dataKey="cantidad" fill="#f97316" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-80 flex items-center justify-center text-gray-400">
+                  No hay datos disponibles
+                </div>
+              )}
             </CardContent>
           </Card>
 
           <Card>
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold mb-4">Mantenimientos por Mes</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={stats?.mantenimientosPorMes || []}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="mes" />
-                  <YAxis />
-                  <RechartsTooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="cantidad" stroke="#3b82f6" name="Cantidad" />
-                </LineChart>
-              </ResponsiveContainer>
+              {stats?.mantenimientosPorMes && stats.mantenimientosPorMes.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={stats.mantenimientosPorMes}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="mes" />
+                    <YAxis />
+                    <RechartsTooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="cantidad" stroke="#3b82f6" name="Cantidad" />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-80 flex items-center justify-center text-gray-400">
+                  No hay datos disponibles
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -3128,12 +3198,12 @@ export default function DashboardPage() {
                   <tr>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">ID Equipo</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Serie</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Código Institucional</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Nombre</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Modelo</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Fabricante</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Ubicación</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Estado</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Voltaje</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Acciones</th>
                   </tr>
                 </thead>
@@ -3145,6 +3215,7 @@ export default function DashboardPage() {
                       <tr key={equipo.id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-3 px-4 text-sm">{equipo.id}</td>
                         <td className="py-3 px-4 text-sm">{equipo.numeroSerie}</td>
+                        <td className="py-3 px-4 text-sm">{equipo.codigoInstitucional || "-"}</td>
                         <td className="py-3 px-4 text-sm font-medium">{equipo.nombre}</td>
                         <td className="py-3 px-4 text-sm">{equipo.modelo}</td>
                         <td className="py-3 px-4 text-sm">{equipo.fabricante}</td>
@@ -3163,7 +3234,6 @@ export default function DashboardPage() {
                             </TooltipContent>
                           </Tooltip>
                         </td>
-                        <td className="py-3 px-4 text-sm">{equipo.voltaje}</td>
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2">
                             <Tooltip>
@@ -3596,7 +3666,7 @@ export default function DashboardPage() {
                       <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="p-3 text-sm">{user.id}</td>
                         <td className="p-3 text-sm font-medium">{user.nombre}</td>
-                        <td className="p-3 text-sm text-gray-600">{user.correo}</td>
+                        <td className="p-3 text-sm text-gray-600">{user.email}</td>
                         <td className="p-3 text-sm">
                           <Badge
                             className={`rounded-md px-2 py-1 ${
@@ -4483,18 +4553,56 @@ export default function DashboardPage() {
   // --- Maintenance Rendering Functions ---
   const isOverdue = (dateString: string | undefined): boolean => {
     if (!dateString) return false
-    const today = new Date()
-    const dueDate = new Date(dateString)
-    return dueDate < today && dueDate.toDateString() !== today.toDateString() // Exclude today
+    try {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      
+      let dueDate: Date
+      if (typeof dateString === 'string') {
+        const parts = dateString.split('T')[0].split('-')
+        if (parts.length === 3) {
+          dueDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
+        } else {
+          dueDate = new Date(dateString)
+        }
+      } else {
+        dueDate = new Date(dateString)
+      }
+      
+      dueDate.setHours(0, 0, 0, 0)
+      return dueDate < today
+    } catch (error) {
+      console.error('[v0] Error in isOverdue:', error)
+      return false
+    }
   }
 
   const isUpcoming = (dateString: string | undefined): boolean => {
     if (!dateString) return false
-    const today = new Date()
-    const dueDate = new Date(dateString)
-    const nextSevenDays = new Date(today)
-    nextSevenDays.setDate(today.getDate() + 7)
-    return dueDate >= today && dueDate <= nextSevenDays
+    try {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      
+      let dueDate: Date
+      if (typeof dateString === 'string') {
+        const parts = dateString.split('T')[0].split('-')
+        if (parts.length === 3) {
+          dueDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
+        } else {
+          dueDate = new Date(dateString)
+        }
+      } else {
+        dueDate = new Date(dateString)
+      }
+      
+      dueDate.setHours(0, 0, 0, 0)
+      const nextSevenDays = new Date(today)
+      nextSevenDays.setDate(today.getDate() + 7)
+      return dueDate >= today && dueDate <= nextSevenDays
+    } catch (error) {
+      console.error('[v0] Error in isUpcoming:', error)
+      return false
+    }
   }
 
   const getMaintenanceStatusColor = (resultado: string | undefined) => {
@@ -4521,26 +4629,64 @@ export default function DashboardPage() {
 
   const getMaintenanceForDate = (date: Date) => {
     return maintenanceSchedules.filter((m) => {
-      const maintenanceDate = new Date(m.proximaFecha) // Use proximaFecha from Mantenimiento type
-      return (
-        maintenanceDate.getDate() === date.getDate() &&
-        maintenanceDate.getMonth() === date.getMonth() &&
-        maintenanceDate.getFullYear() === date.getFullYear()
-      )
+      try {
+        // Parse the date string safely, handling different formats
+        let maintenanceDate: Date
+        if (typeof m.proximaFecha === 'string') {
+          // Handle ISO strings and date strings
+          const parts = m.proximaFecha.split('T')[0].split('-')
+          if (parts.length === 3) {
+            maintenanceDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
+          } else {
+            maintenanceDate = new Date(m.proximaFecha)
+          }
+        } else {
+          maintenanceDate = new Date(m.proximaFecha)
+        }
+        
+        return (
+          maintenanceDate.getDate() === date.getDate() &&
+          maintenanceDate.getMonth() === date.getMonth() &&
+          maintenanceDate.getFullYear() === date.getFullYear()
+        )
+      } catch (error) {
+        console.error('[v0] Error parsing maintenance date:', m.proximaFecha, error)
+        return false
+      }
     })
   }
 
   const getMaintenanceStatus = (maintenance: Mantenimiento) => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const maintenanceDate = new Date(maintenance.proximaFecha) // Use proximaFecha from Mantenimiento type
-    maintenanceDate.setHours(0, 0, 0, 0)
-    const diffDays = Math.ceil((maintenanceDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+    try {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      
+      // Parse the date string safely
+      let maintenanceDate: Date
+      if (typeof maintenance.proximaFecha === 'string') {
+        const parts = maintenance.proximaFecha.split('T')[0].split('-')
+        if (parts.length === 3) {
+          maintenanceDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
+        } else {
+          maintenanceDate = new Date(maintenance.proximaFecha)
+        }
+      } else {
+        maintenanceDate = new Date(maintenance.proximaFecha)
+      }
+      
+      maintenanceDate.setHours(0, 0, 0, 0)
+      const diffDays = Math.ceil((maintenanceDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 
-    if (maintenance.resultado === "Completado") return "completed"
-    if (diffDays < 0) return "overdue"
-    if (diffDays <= 7) return "upcoming"
-    return "scheduled"
+      // Case-insensitive comparison for resultado
+      const resultado = maintenance.resultado?.toLowerCase()
+      if (resultado === "completado") return "completed"
+      if (diffDays < 0) return "overdue"
+      if (diffDays <= 7) return "upcoming"
+      return "scheduled"
+    } catch (error) {
+      console.error('[v0] Error calculating maintenance status:', error)
+      return "scheduled"
+    }
   }
 
   const navigateMonth = (direction: "prev" | "next") => {
@@ -4683,16 +4829,16 @@ export default function DashboardPage() {
   const handleEditMaintenance = (maintenance: Mantenimiento) => {
     setSelectedMaintenance(maintenance)
     setMaintenanceForm({
-      equipoId: maintenance.equipoId,
+      equipoId: (maintenance as any).equipo_id || (maintenance as any).equipoId,
       tipo: maintenance.tipo,
       frecuencia: maintenance.frecuencia,
-      proximaFecha: maintenance.proximaFecha,
-      ultimaFecha: maintenance.ultimaFecha,
-      resultado: maintenance.resultado,
-      observaciones: maintenance.observaciones,
+      proximaFecha: (maintenance as any).proxima_programada || (maintenance as any).proximaFecha,
+      ultimaFecha: (maintenance as any).ultima_realizacion || (maintenance as any).ultimaFecha,
+      resultado: (maintenance as any).resultado || "pendiente",
+      observaciones: (maintenance as any).observaciones || (maintenance as any).descripcion,
       descripcion: maintenance.descripcion,
       procedimiento: maintenance.procedimiento,
-      responsableId: maintenance.responsableId,
+      responsableId: (maintenance as any).creado_por || (maintenance as any).responsableId,
     })
     setShowMaintenanceForm(true)
     setMaintenanceFormErrors({})
@@ -5615,8 +5761,8 @@ export default function DashboardPage() {
                 {paginatedLogs.length > 0 ? (
                   paginatedLogs.map((log) => (
                     <tr key={log.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm">{log.timestamp}</td>
-                      <td className="px-4 py-3 text-sm">{log.usuario}</td>
+                      <td className="px-4 py-3 text-sm">{log.created_at ? new Date(log.created_at).toLocaleString('es-ES') : '-'}</td>
+                      <td className="px-4 py-3 text-sm">{log.usuario?.nombre || 'Sistema'}</td>
                       <td className="px-4 py-3 text-sm">
                         <span
                           className={`px-2 py-1 rounded text-xs font-medium ${

@@ -64,7 +64,8 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     
     for (let i = 5; i >= 0; i--) {
       const date = new Date(today.getFullYear(), today.getMonth() - i, 1)
-      const mesKey = `${date.getFullYear()}-${String(date.getMonth()).padStart(2, '0')}`
+      const monthNum = String(date.getMonth() + 1).padStart(2, '0') // Add 1 since getMonth() returns 0-11
+      const mesKey = `${date.getFullYear()}-${monthNum}`
       mantenimientosPorMesMap.set(mesKey, 0)
     }
     
@@ -80,7 +81,8 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       mantenimientos.forEach((mant) => {
         if (mant.proxima_programada) {
           const fecha = new Date(mant.proxima_programada)
-          const mesKey = `${fecha.getFullYear()}-${String(fecha.getMonth()).padStart(2, '0')}`
+          const monthNum = String(fecha.getMonth() + 1).padStart(2, '0')
+          const mesKey = `${fecha.getFullYear()}-${monthNum}`
           if (mantenimientosPorMesMap.has(mesKey)) {
             mantenimientosPorMesMap.set(mesKey, (mantenimientosPorMesMap.get(mesKey) || 0) + 1)
           }
@@ -94,11 +96,13 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     const mantenimientosPorMes: Array<{ mes: string; cantidad: number }> = []
     for (let i = 5; i >= 0; i--) {
       const date = new Date(today.getFullYear(), today.getMonth() - i, 1)
-      const mesKey = `${date.getFullYear()}-${String(date.getMonth()).padStart(2, '0')}`
+      const monthNum = String(date.getMonth() + 1).padStart(2, '0')
+      const mesKey = `${date.getFullYear()}-${monthNum}`
       const mesNombre = mesesNombres[date.getMonth()]
+      const cantidad = mantenimientosPorMesMap.get(mesKey) || 0
       mantenimientosPorMes.push({
         mes: mesNombre,
-        cantidad: mantenimientosPorMesMap.get(mesKey) || 0,
+        cantidad,
       })
     }
     

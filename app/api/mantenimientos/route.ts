@@ -124,8 +124,8 @@ export async function POST(request: NextRequest) {
     await prisma.log.create({
       data: {
         usuario_id: session.id,
-        accion: 'crear',
-        modulo: 'mantenimientos',
+        accion: 'Crear',
+        modulo: 'Mantenimiento',
         descripcion: `Mantenimiento programado: ${mantenimiento.tipo} para equipo ${mantenimiento.equipo_id}`,
         datos: { mantenimiento_id: mantenimiento.id },
       },

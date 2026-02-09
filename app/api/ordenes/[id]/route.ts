@@ -149,8 +149,8 @@ export async function PUT(
     await prisma.log.create({
       data: {
         usuario_id: session.id,
-        accion: 'actualizar',
-        modulo: 'ordenes',
+        accion: 'Actualizar',
+        modulo: 'Órdenes de Trabajo',
         descripcion: `Orden actualizada: ${orden.numero_orden}`,
         datos: { orden_id: orden.id, cambios: data },
       },
@@ -223,8 +223,8 @@ export async function DELETE(
     await prisma.log.create({
       data: {
         usuario_id: session.id,
-        accion: 'eliminar',
-        modulo: 'ordenes',
+        accion: 'Eliminar',
+        modulo: 'Órdenes de Trabajo',
         descripcion: `Orden eliminada: ${orden.numero_orden}`,
         datos: { orden_id: orden.id },
       },

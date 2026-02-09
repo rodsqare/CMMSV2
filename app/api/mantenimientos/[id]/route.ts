@@ -133,8 +133,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     await prisma.log.create({
       data: {
         usuario_id: session.id,
-        accion: 'actualizar',
-        modulo: 'mantenimientos',
+        accion: 'Actualizar',
+        modulo: 'Mantenimiento',
         descripcion: `Mantenimiento actualizado: ${mantenimiento.tipo} para equipo ${mantenimiento.equipo_id}`,
         datos: { mantenimiento_id: mantenimiento.id },
       },
@@ -177,8 +177,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     await prisma.log.create({
       data: {
         usuario_id: session.id,
-        accion: 'eliminar',
-        modulo: 'mantenimientos',
+        accion: 'Eliminar',
+        modulo: 'Mantenimiento',
         descripcion: `Mantenimiento eliminado: ${existingMaintenance.tipo} para equipo ${existingMaintenance.equipo_id}`,
         datos: { mantenimiento_id: id },
       },
