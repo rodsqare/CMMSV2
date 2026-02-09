@@ -627,6 +627,41 @@ export default function DashboardPage() {
     }
   }, [currentPage, perPage, searchTerm, equipmentFilters])
 
+  // Define loadWorkOrders before useEffect hooks that use it
+  const loadWorkOrders = useCallback(async () => {
+    console.log("[v0] loadWorkOrders - Starting with filters:", { orderCurrentPage, orderPerPage, searchOrder, orderFilters })
+    setIsLoadingOrders(true)
+    
+    try {
+      const params = {
+        estado: orderFilters.estado !== "all" ? orderFilters.estado : undefined,
+        prioridad: orderFilters.prioridad !== "all" ? orderFilters.prioridad : undefined,
+        tipo: orderFilters.tipo !== "all" ? orderFilters.tipo : undefined,
+        fechaDesde: orderFilters.fechaDesde || undefined,
+        fechaHasta: orderFilters.fechaHasta || undefined,
+        search: searchOrder || undefined,
+        page: orderCurrentPage, // Use renamed state
+        perPage: orderPerPage, // Use renamed state
+      }
+
+      // Use deduplicated request to avoid concurrent calls
+      const response = await deduplicateRequest(
+        `ordenes_${JSON.stringify(params)}`,
+        () => fetchOrdenesTrabajo(params),
+        3 * 60 * 1000 // 3 minute cache
+      )
+
+      setWorkOrders(response.data)
+      setOrderTotalPages(response.lastPage) // Use renamed state
+      console.log("[v0] loadWorkOrders - Successfully loaded", response.data.length, "items")
+    } catch (error) {
+      console.error("[v0] loadWorkOrders - Error:", error)
+      setWorkOrders([])
+    } finally {
+      setIsLoadingOrders(false)
+    }
+  }, [orderCurrentPage, orderPerPage, searchOrder, orderFilters])
+
   // Initial load of equipment data when the component mounts.
   useEffect(() => {
     console.log("[v0] Component mounted - loading initial data")
@@ -640,6 +675,12 @@ export default function DashboardPage() {
       loadEquipment()
     }
   }, [activeSection, loadEquipment])
+
+  // Initial load of work orders data when the component mounts.
+  useEffect(() => {
+    console.log("[v0] Component mounted - loading initial work orders")
+    loadWorkOrders()
+  }, [loadWorkOrders])
 
   const checkAndCreateWorkOrdersForMaintenance = async (mantenimientos: Mantenimiento[]) => {
     const today = new Date()
@@ -986,7 +1027,7 @@ export default function DashboardPage() {
       loadWorkOrders()
       loadUsers()
     }
-  }, [activeSection, orderCurrentPage, orderPerPage])
+  }, [activeSection, orderCurrentPage, orderPerPage, loadWorkOrders])
 
   // Load users when entering the 'tecnicos' section.
   useEffect(() => {
@@ -1044,86 +1085,6 @@ export default function DashboardPage() {
       console.error("[v0] Error checking equipment associations:", error)
       // If API fails, allow deletion to proceed (fallback behavior)
       return true
-    }
-  }
-
-  // Load users when entering ordenes section or when dialog opens
-  useEffect(() => {
-    if (activeSection === "ordenes" && users.length === 0) {
-      loadUsers()
-    }
-  }, [activeSection]) // Removed dependency on users.length to avoid potential infinite loops if not managed carefully
-
-  // Load users when assign dialog opens
-  useEffect(() => {
-    if (isAssignDialogOpen && users.length === 0) {
-      loadUsers()
-    }
-  }, [isAssignDialogOpen])
-
-  useEffect(() => {
-    if (isAssignDialogOpen && users.length > 0) {
-      // ... (console logs removed as per change)
-    }
-  }, [isAssignDialogOpen, users])
-
-  useEffect(() => {
-    // Reload users when filters change
-    if (activeSection === "tecnicos") {
-      loadUsers()
-    }
-  }, [userFilters]) // Removed duplicate and problematic useEffects that were causing infinite loops
-
-  // Reload work orders when filters change
-  useEffect(() => {
-    // Reload work orders when filters change
-    if (activeSection === "ordenes") {
-      loadWorkOrders()
-    }
-  }, [orderFilters, searchOrder]) // Removed duplicate and problematic useEffects that were causing infinite loops
-
-  // Sync newUser state when editingUser changes
-  useEffect(() => {
-    if (editingUser && showUserForm) {
-      // Explicitly copy all fields from editingUser to newUser
-      // Don't include password field for editing - it's optional
-      const syncedUser = {
-        id: editingUser.id,
-        nombre: editingUser.nombre || "",
-        email: editingUser.email || "",
-        rol: editingUser.rol,
-        estado: editingUser.estado || (editingUser.activo ? "Activo" : "Inactivo"),
-        activo: editingUser.activo !== undefined ? editingUser.activo : true,
-        // Don't set contrasena for editing users - password field is hidden
-      }
-      
-      setNewUser(syncedUser)
-      // Clear any previous errors
-      setUserFormErrors({})
-    }
-  }, [editingUser, showUserForm])
-
-  const loadWorkOrders = async () => {
-    setIsLoadingOrders(true)
-    try {
-      const response = await fetchOrdenesTrabajo({
-        estado: orderFilters.estado !== "all" ? orderFilters.estado : undefined,
-        prioridad: orderFilters.prioridad !== "all" ? orderFilters.prioridad : undefined,
-        tipo: orderFilters.tipo !== "all" ? orderFilters.tipo : undefined,
-        fechaDesde: orderFilters.fechaDesde || undefined,
-        fechaHasta: orderFilters.fechaHasta || undefined,
-        search: searchOrder || undefined,
-        page: orderCurrentPage, // Use renamed state
-        perPage: orderPerPage, // Use renamed state
-      })
-
-      setWorkOrders(response.data)
-      setOrderTotalPages(response.lastPage) // Use renamed state
-    } catch (error) {
-      console.error("[v0] Error loading work orders:", error)
-      setWorkOrders([])
-    } finally {
-      setIsLoadingOrders(false)
     }
   }
 
@@ -5267,7 +5228,7 @@ export default function DashboardPage() {
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="ultimaFecha">Última Fecha</Label>
+              <Label htmlFor="ultimaFecha">��ltima Fecha</Label>
               <Input
                 id="ultimaFecha"
                 type="date"
