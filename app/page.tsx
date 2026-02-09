@@ -4747,9 +4747,22 @@ export default function DashboardPage() {
   }
 
   const renderCalendar = () => {
+    // Transform maintenanceSchedules to SmartCalendarMaintenance format
+    const transformedMaintenance = maintenanceSchedules
+      .filter(m => m && m.proxima_programada) // Filter out invalid entries
+      .map(m => ({
+        id: m.id,
+        equipoId: m.equipo_id || m.equipoId || 0,
+        equipo: m.equipo?.nombre || (m as any).equipo || `Equipo #${m.equipo_id}`,
+        tipo: m.tipo || 'Mantenimiento',
+        frecuencia: m.frecuencia || 'Sin especificar',
+        proximaFecha: m.proxima_programada || m.proximaFecha || new Date().toISOString(),
+        status: m.resultado as 'overdue' | 'upcoming' | 'scheduled' | 'completed' | undefined,
+      }))
+    
     return (
       <SmartMaintenanceCalendar
-        maintenances={maintenanceSchedules}
+        maintenances={transformedMaintenance}
         currentMonth={currentMonth}
         onMonthChange={setCurrentMonth}
         onDateSelect={(date, suggestion) => {
