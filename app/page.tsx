@@ -837,7 +837,7 @@ export default function DashboardPage() {
   //   }
   // }, [activeSection])
 
-  // CHANGE: Load dashboard stats once when user is authenticated
+  // CHANGE: Load dashboard stats once when component mounts or user is authenticated
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -858,10 +858,15 @@ export default function DashboardPage() {
       }
     }
 
+    // Load stats when component mounts or when user is set
     if (currentUser) {
       fetchData()
+    } else if (!loading) {
+      // If loading is done but no currentUser, still try to fetch stats
+      // This handles cases where auth is bypassed or not required
+      fetchData()
     }
-  }, [currentUser])
+  }, [currentUser, loading])
 
   // --- Maintenance Loaders and Stats ---
   const loadMaintenanceSchedules = async () => {
@@ -2601,7 +2606,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-green-100 text-sm">Técnicos</p>
-                  <p className="text-3xl font-bold">{stats?.usuariosCount || 0}</p>
+                  <p className="text-3xl font-bold">{stats ? stats.usuariosCount : <Skeleton className="h-10 w-16" />}</p>
                 </div>
                 <Users className="h-8 w-8 text-green-200" />
               </div>
@@ -2613,7 +2618,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-orange-100 text-sm">Equipos</p>
-                  <p className="text-3xl font-bold">{stats?.equiposCount || 45}</p>
+                  <p className="text-3xl font-bold">{stats ? stats.equiposCount : <Skeleton className="h-10 w-16" />}</p>
                 </div>
                 <Wrench className="h-8 w-8 text-orange-200" />
               </div>
@@ -2625,7 +2630,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sky-100 text-sm">Mantenimientos</p>
-                  <p className="text-3xl font-bold">{stats?.mantenimientosCount || 23}</p>
+                  <p className="text-3xl font-bold">{stats ? stats.mantenimientosCount : <Skeleton className="h-10 w-16" />}</p>
                 </div>
                 <SettingsIcon className="h-8 w-8 text-sky-200" />
               </div>
@@ -2648,8 +2653,10 @@ export default function DashboardPage() {
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-80 flex items-center justify-center text-gray-400">
-                  No hay datos disponibles
+                <div className="h-80 flex flex-col items-center justify-center text-gray-400 bg-gray-50 rounded">
+                  <AlertCircle className="h-12 w-12 mb-3 text-gray-300" />
+                  <p>No hay datos de equipos registrados</p>
+                  <p className="text-xs mt-1">Registra equipos en la sección de Gestión de Equipos</p>
                 </div>
               )}
             </CardContent>
@@ -2670,8 +2677,10 @@ export default function DashboardPage() {
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-80 flex items-center justify-center text-gray-400">
-                  No hay datos disponibles
+                <div className="h-80 flex flex-col items-center justify-center text-gray-400 bg-gray-50 rounded">
+                  <AlertCircle className="h-12 w-12 mb-3 text-gray-300" />
+                  <p>No hay datos de mantenimientos</p>
+                  <p className="text-xs mt-1">Los mantenimientos aparecerán cuando se registren</p>
                 </div>
               )}
             </CardContent>
