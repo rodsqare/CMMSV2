@@ -77,7 +77,7 @@ const createOrdenSchema = z.object({
   tiempo_estimado: z.number().optional().or(z.null()),
   costo_estimado: z.number().optional().or(z.null()),
   asignado_a: z.number().optional().or(z.null()),
-}).strict()
+})
 
 export async function POST(request: NextRequest) {
   try {

@@ -1,4 +1,4 @@
-const API_BASE_URL = typeof window !== 'undefined' ? '/api/proxy' : 'http://localhost:3000/api/proxy'
+const API_BASE_URL = typeof window !== 'undefined' ? '/api' : 'http://localhost:3000/api'
 
 class ApiClient {
   private baseUrl: string

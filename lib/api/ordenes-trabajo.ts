@@ -92,22 +92,20 @@ function transformOrdenToAPI(orden: Partial<OrdenTrabajo>): any {
   }
 
   const normalized: any = {
-    numero_orden: orden.numeroOrden,
     equipo_id: orden.equipoId,
     tipo: tipo,
     prioridad: prioridad,
-    estado: estado,
     descripcion: orden.descripcion,
-    asignado_a: orden.tecnicoAsignadoId,
-    fecha_solicitud: orden.fechaCreacion,
-    fecha_inicio: orden.fechaInicio,
-    fecha_finalizacion: orden.fechaFinalizacion,
-    tiempo_real: orden.horasTrabajadas,
-    costo_estimado: orden.costoRepuestos,
-    costo_real: orden.costoTotal,
-    notas: orden.observaciones,
+    asignado_a: orden.tecnicoAsignadoId || undefined,
+    // Optional fields - map fechaCreacion to fecha_programada
+    ...(orden.fechaCreacion && { fecha_programada: orden.fechaCreacion }),
+    ...(orden.horasTrabajadas !== undefined && orden.horasTrabajadas !== null && { tiempo_estimado: orden.horasTrabajadas }),
+    ...(orden.costoRepuestos !== undefined && orden.costoRepuestos !== null && { costo_estimado: orden.costoRepuestos }),
+    // For updates only, include estado
+    ...(orden.id && { estado: estado }),
   }
 
+  // Remove undefined values
   Object.keys(normalized).forEach((key) => {
     if (normalized[key] === undefined || normalized[key] === null || normalized[key] === "") {
       delete normalized[key]
