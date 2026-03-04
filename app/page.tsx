@@ -1353,7 +1353,19 @@ export default function DashboardPage() {
     )
   }
 
-  const filteredOrders = workOrders
+  const filteredOrders = workOrders.filter((order) => {
+    // Apply search filter
+    if (searchOrder.trim()) {
+      const searchLower = searchOrder.toLowerCase()
+      return (
+        (order.numeroOrden && order.numeroOrden.toLowerCase().includes(searchLower)) ||
+        (order.equipoNombre && order.equipoNombre.toLowerCase().includes(searchLower)) ||
+        (order.descripcion && order.descripcion.toLowerCase().includes(searchLower)) ||
+        (order.tecnicoAsignadoNombre && order.tecnicoAsignadoNombre.toLowerCase().includes(searchLower))
+      )
+    }
+    return true
+  })
 
   const renderOrdenes = () => {
     const totalRecords = filteredOrders.length
@@ -1493,7 +1505,10 @@ export default function DashboardPage() {
                   className="w-64"
                   placeholder="Buscar órdenes..."
                   value={searchOrder}
-                  onChange={(e) => setSearchOrder(e.target.value)}
+                  onChange={(e) => {
+                    setSearchOrder(e.target.value)
+                    setOrderCurrentPage(1) // Reset to first page when searching
+                  }}
                 />
               </div>
             </div>
