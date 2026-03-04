@@ -20,8 +20,6 @@ function transformFromDB(record: any): OrdenTrabajo {
 }
 
 export async function createOrdenDB(data: any): Promise<OrdenTrabajo> {
-  console.log('[v0] createOrdenDB - Creating with data:', data)
-  
   try {
     // Ensure database is initialized
     await waitForDbInit()
@@ -50,7 +48,6 @@ export async function createOrdenDB(data: any): Promise<OrdenTrabajo> {
       },
     })
 
-    console.log('[v0] createOrdenDB - Created orden:', orden.id)
     return transformFromDB(orden)
   } catch (error) {
     console.error('[v0] createOrdenDB - Error:', error)
@@ -102,6 +99,9 @@ export async function getOrdenesDB(filters?: any): Promise<OrdenTrabajo[]> {
         tecnico: true,
         creador: true,
       },
+      orderBy: { created_at: 'desc' },
+      take: filters?.limit || 100,
+      skip: filters?.offset || 0,
     })
 
     return ordenes.map(transformFromDB)
@@ -111,31 +111,7 @@ export async function getOrdenesDB(filters?: any): Promise<OrdenTrabajo[]> {
   }
 }
 
-export async function getOrdenesDB(filters?: any): Promise<OrdenTrabajo[]> {
-  await waitForDbInit()
-  
-  const ordenes = await prisma.orden_trabajo.findMany({
-    where: {
-      deleted_at: null,
-      ...(filters?.estado && { estado: filters.estado }),
-      ...(filters?.prioridad && { prioridad: filters.prioridad }),
-    },
-    include: {
-      equipo: true,
-      tecnico: true,
-      creador: true,
-    },
-    orderBy: { created_at: 'desc' },
-    take: filters?.limit || 100,
-    skip: filters?.offset || 0,
-  })
-
-  return ordenes.map(transformFromDB)
-}
-
 export async function updateOrdenDB(id: number, data: any): Promise<OrdenTrabajo> {
-  console.log('[v0] updateOrdenDB - Updating orden', id, 'with data:', data)
-  
   try {
     await waitForDbInit()
     
@@ -167,7 +143,6 @@ export async function updateOrdenDB(id: number, data: any): Promise<OrdenTrabajo
       },
     })
 
-    console.log('[v0] updateOrdenDB - Updated orden:', id)
     return transformFromDB(orden)
   } catch (error) {
     console.error('[v0] updateOrdenDB - Error:', error)
@@ -176,8 +151,6 @@ export async function updateOrdenDB(id: number, data: any): Promise<OrdenTrabajo
 }
 
 export async function deleteOrdenDB(id: number): Promise<boolean> {
-  console.log('[v0] deleteOrdenDB - Deleting orden', id)
-  
   try {
     await waitForDbInit()
     
@@ -193,7 +166,6 @@ export async function deleteOrdenDB(id: number): Promise<boolean> {
       },
     })
 
-    console.log('[v0] deleteOrdenDB - Deleted orden:', id)
     return true
   } catch (error) {
     console.error('[v0] deleteOrdenDB - Error:', error)
@@ -202,8 +174,6 @@ export async function deleteOrdenDB(id: number): Promise<boolean> {
 }
 
 export async function asignarTecnicoDB(ordenId: number, tecnicoId: number): Promise<OrdenTrabajo> {
-  console.log('[v0] asignarTecnicoDB - Assigning tecnico', tecnicoId, 'to orden', ordenId)
-  
   try {
     await waitForDbInit()
     
@@ -224,7 +194,6 @@ export async function asignarTecnicoDB(ordenId: number, tecnicoId: number): Prom
       },
     })
 
-    console.log('[v0] asignarTecnicoDB - Assigned tecnico')
     return transformFromDB(orden)
   } catch (error) {
     console.error('[v0] asignarTecnicoDB - Error:', error)
@@ -236,8 +205,6 @@ export async function cambiarEstadoDB(
   ordenId: number,
   nuevoEstado: string,
 ): Promise<OrdenTrabajo> {
-  console.log('[v0] cambiarEstadoDB - Changing estado of orden', ordenId, 'to', nuevoEstado)
-  
   try {
     await waitForDbInit()
     
@@ -257,7 +224,6 @@ export async function cambiarEstadoDB(
       },
     })
 
-    console.log('[v0] cambiarEstadoDB - Changed estado')
     return transformFromDB(orden)
   } catch (error) {
     console.error('[v0] cambiarEstadoDB - Error:', error)
