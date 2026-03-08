@@ -21,13 +21,12 @@ interface NotificationWithType extends Notification {
 function getNotificationIcon(tipo?: string) {
   switch (tipo?.toLowerCase()) {
     case "warning":
-    case "mantenimiento":
       return <AlertCircle className="h-5 w-5 text-amber-500 flex-shrink-0" />
+    case "error":
+      return <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
     case "success":
-    case "completado":
       return <CheckCircle2 className="h-5 w-5 text-emerald-500 flex-shrink-0" />
     case "info":
-    case "orden":
     default:
       return <Clock className="h-5 w-5 text-blue-500 flex-shrink-0" />
   }
@@ -36,13 +35,12 @@ function getNotificationIcon(tipo?: string) {
 function getNotificationBgColor(tipo?: string) {
   switch (tipo?.toLowerCase()) {
     case "warning":
-    case "mantenimiento":
       return "bg-amber-50 dark:bg-amber-950"
+    case "error":
+      return "bg-red-50 dark:bg-red-950"
     case "success":
-    case "completado":
       return "bg-emerald-50 dark:bg-emerald-950"
     case "info":
-    case "orden":
     default:
       return "bg-blue-50 dark:bg-blue-950"
   }
