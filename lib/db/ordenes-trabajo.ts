@@ -102,6 +102,9 @@ export async function getOrdenesDB(filters?: any): Promise<OrdenTrabajo[]> {
         tecnico: true,
         creador: true,
       },
+      orderBy: { created_at: 'desc' },
+      take: filters?.limit || 100,
+      skip: filters?.offset || 0,
     })
 
     return ordenes.map(transformFromDB)
@@ -109,28 +112,6 @@ export async function getOrdenesDB(filters?: any): Promise<OrdenTrabajo[]> {
     console.error('[v0] getOrdenesDB - Error:', error)
     throw error
   }
-}
-
-export async function getOrdenesDB(filters?: any): Promise<OrdenTrabajo[]> {
-  await waitForDbInit()
-  
-  const ordenes = await prisma.orden_trabajo.findMany({
-    where: {
-      deleted_at: null,
-      ...(filters?.estado && { estado: filters.estado }),
-      ...(filters?.prioridad && { prioridad: filters.prioridad }),
-    },
-    include: {
-      equipo: true,
-      tecnico: true,
-      creador: true,
-    },
-    orderBy: { created_at: 'desc' },
-    take: filters?.limit || 100,
-    skip: filters?.offset || 0,
-  })
-
-  return ordenes.map(transformFromDB)
 }
 
 export async function updateOrdenDB(id: number, data: any): Promise<OrdenTrabajo> {
